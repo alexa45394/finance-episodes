@@ -33,7 +33,6 @@ const CPI_DATA = [
   { year: 2025, cpi: 321.9 },
 ];
 
-const CPI_BASE_YEAR = 2000;
 const CPI_BASE = 172.2;
 
 const EPISODE_ANNOTATIONS = [
@@ -43,6 +42,15 @@ const EPISODE_ANNOTATIONS = [
   { year: 2022, label: "Inflation" },
   { year: 2023, label: "AI Rally" },
 ];
+
+const EPISODE_YEARS = {
+  "Dot-Com Crash":           { start: 2000, end: 2002 },
+  "Global Financial Crisis": { start: 2007, end: 2009 },
+  "COVID Crash":             { start: 2020, end: 2020 },
+  "2022 Inflation Shock":    { start: 2022, end: 2022 },
+  "Regional Banking Crisis": { start: 2023, end: 2023 },
+  "AI Rally":                { start: 2023, end: 2024 },
+};
 
 // ─────────────────────────────────────────────
 // STATE
@@ -56,6 +64,18 @@ let state = {
 
 let crisisData = [];
 let episodeMeta = [];
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+// Returns real purchasing power of $100 starting from fromYear, measured at toYear
+function realValueAt(fromYear, toYear) {
+  const from = CPI_DATA.find(d => d.year === fromYear);
+  const to   = CPI_DATA.find(d => d.year === toYear);
+  if (!from || !to) return null;
+  return (100 * (from.cpi / to.cpi)).toFixed(2);
+}
 
 // ─────────────────────────────────────────────
 // LOAD DATA
@@ -77,6 +97,7 @@ Promise.all([
 
   populateAssetDropdown();
   drawInflationChart();
+  updateInflationBlurb();
 });
 
 // ─────────────────────────────────────────────
@@ -101,21 +122,95 @@ function populateAssetDropdown() {
 }
 
 // ─────────────────────────────────────────────
-// EPISODE BUTTONS
+// EPISODE DROPDOWN
 // ─────────────────────────────────────────────
 
-d3.selectAll(".episode-btn").on("click", function () {
-  d3.selectAll(".episode-btn").classed("active", false);
-  d3.select(this).classed("active", true);
-  state.episode = this.dataset.episode;
+document.getElementById("episode-dropdown").addEventListener("change", function () {
+  state.episode = this.value;
+  updateInflationBlurb();
+  drawInflationChart(); // redraws from scratch with new start year
 });
 
 // ─────────────────────────────────────────────
-// BEGIN BUTTON — launches the slideshow
+// DYNAMIC BLURB
+// ─────────────────────────────────────────────
+
+function updateInflationBlurb() {
+  const ep = state.episode;
+  const years = EPISODE_YEARS[ep];
+  if (!years) return;
+
+  // Start value is always $100.00 since we baseline to the episode start
+  const startVal = "100.00";
+  const endVal   = realValueAt(years.start, years.end);
+
+  document.getElementById("blurb-episode").textContent     = ep;
+  document.getElementById("blurb-year").textContent        = years.start;
+  document.getElementById("blurb-end-year").textContent    = years.end;
+  document.getElementById("blurb-start-value").textContent = `$${startVal}`;
+  document.getElementById("blurb-end-value").textContent   = `$${endVal}`;
+
+  // Color end pill based on how much was lost
+  const endPill = document.getElementById("blurb-end-value");
+  const drop = 100 - parseFloat(endVal);
+  endPill.className = "highlight-pill " + (drop > 3 ? "highlight-red" : "highlight-gold");
+}
+
+// ─────────────────────────────────────────────
+// INFLATION CHART HIGHLIGHT BAND
+// ─────────────────────────────────────────────
+
+function updateInflationChartHighlight() {
+  const ep = state.episode;
+  const years = EPISODE_YEARS[ep];
+  if (!years) return;
+
+  const svg = d3.select("#inflation-chart svg");
+  if (svg.empty()) return;
+
+  svg.selectAll(".episode-highlight").remove();
+
+  const margin = { top: 24, right: 24, bottom: 40, left: 52 };
+  const viewBox = svg.attr("viewBox").split(" ");
+  const W = +viewBox[2];
+  const H = 280;
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const startYear = years.start;
+  const x = d3.scaleLinear().domain([startYear, 2025]).range([0, w]);
+
+  const g = svg.select("g");
+
+  const x1 = x(years.start);
+  const x2 = x(Math.min(years.end + 0.9, 2025));
+
+  g.insert("rect", ":first-child")
+    .attr("class", "episode-highlight")
+    .attr("x", x1)
+    .attr("y", 0)
+    .attr("width", x2 - x1)
+    .attr("height", h)
+    .attr("fill", "#4a90d9")
+    .attr("opacity", 0.1)
+    .attr("rx", 3);
+
+  g.append("text")
+    .attr("class", "episode-highlight")
+    .attr("x", x1 + (x2 - x1) / 2)
+    .attr("y", 13)
+    .attr("text-anchor", "middle")
+    .attr("fill", "#4a90d9")
+    .attr("font-size", "10px")
+    .attr("font-weight", "700")
+    .text(ep);
+}
+
+// ─────────────────────────────────────────────
+// BEGIN BUTTON
 // ─────────────────────────────────────────────
 
 document.getElementById("begin-btn").addEventListener("click", () => {
-  // Show episode story banner
   const meta = episodeMeta.find(d => d.episode === state.episode);
   if (meta) {
     const banner = document.getElementById("episode-banner");
@@ -123,11 +218,8 @@ document.getElementById("begin-btn").addEventListener("click", () => {
     banner.classList.add("visible");
   }
 
-  // Show slideshow, go to slide 1
   document.getElementById("slideshow").classList.add("visible");
   goToSlide(1);
-
-  // Scroll down to slideshow
   document.getElementById("slideshow").scrollIntoView({ behavior: "smooth" });
 });
 
@@ -144,25 +236,21 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
 });
 
 function goToSlide(n) {
-  // Clamp between 1 and 4
   n = Math.max(1, Math.min(4, n));
   state.currentSlide = n;
 
-  // Hide all slides, show the target
   document.querySelectorAll(".slide").forEach(s => s.classList.remove("active"));
   document.getElementById(`slide-${n}`).classList.add("active");
 
-  // Draw the right chart when we land on slide 2
   if (n === 2) drawMainChart();
 
-  // Scroll to top of slideshow
   document.getElementById("slideshow").scrollIntoView({ behavior: "smooth" });
 }
 
 // ─────────────────────────────────────────────
 // INFLATION CHART
-// Shows how $100 in 2000 loses purchasing power.
-// Formula: realValue = 100 × (CPI_2000 / CPI_year)
+// Starts from the selected episode's start year.
+// Formula: realValue = 100 × (CPI_startYear / CPI_year)
 // ─────────────────────────────────────────────
 
 function drawInflationChart() {
@@ -173,10 +261,17 @@ function drawInflationChart() {
   const w = W - margin.left - margin.right;
   const h = H - margin.top - margin.bottom;
 
-  const inflationLine = CPI_DATA.map(d => ({
-    year: d.year,
-    value: +(100 * (CPI_BASE / d.cpi)).toFixed(2),
-  }));
+  const years = EPISODE_YEARS[state.episode];
+  const startYear = years ? years.start : 2000;
+  const startCPI = CPI_DATA.find(d => d.year === startYear).cpi;
+
+  // Only show data from episode start year onward
+  const inflationLine = CPI_DATA
+    .filter(d => d.year >= startYear)
+    .map(d => ({
+      year: d.year,
+      value: +(100 * (startCPI / d.cpi)).toFixed(2),
+    }));
 
   d3.select("#inflation-chart").selectAll("*").remove();
 
@@ -188,7 +283,7 @@ function drawInflationChart() {
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleLinear().domain([2000, 2025]).range([0, w]);
+  const x = d3.scaleLinear().domain([startYear, 2025]).range([0, w]);
   const y = d3.scaleLinear().domain([45, 105]).range([h, 0]);
 
   // Shaded area under line
@@ -217,23 +312,25 @@ function drawInflationChart() {
     .attr("y", y(100) - 6)
     .attr("fill", "#aaa")
     .attr("font-size", "11px")
-    .text("$100 in 2000");
+    .text(`$100 in ${startYear}`);
 
-  // Episode annotation lines
-  EPISODE_ANNOTATIONS.forEach(ep => {
-    g.append("line")
-      .attr("x1", x(ep.year)).attr("x2", x(ep.year))
-      .attr("y1", 0).attr("y2", h)
-      .attr("stroke", "#e0e0e0")
-      .attr("stroke-width", 1);
+  // Only show annotations that fall within the visible range
+  EPISODE_ANNOTATIONS
+    .filter(ep => ep.year >= startYear)
+    .forEach(ep => {
+      g.append("line")
+        .attr("x1", x(ep.year)).attr("x2", x(ep.year))
+        .attr("y1", 0).attr("y2", h)
+        .attr("stroke", "#e0e0e0")
+        .attr("stroke-width", 1);
 
-    g.append("text")
-      .attr("x", x(ep.year) + 4)
-      .attr("y", h - 6)
-      .attr("fill", "#bbb")
-      .attr("font-size", "10px")
-      .text(ep.label);
-  });
+      g.append("text")
+        .attr("x", x(ep.year) + 4)
+        .attr("y", h - 6)
+        .attr("fill", "#bbb")
+        .attr("font-size", "10px")
+        .text(ep.label);
+    });
 
   // Main line
   const lineGen = d3.line()
@@ -258,7 +355,6 @@ function drawInflationChart() {
     .call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`))
     .call(g => g.select(".domain").remove());
 
-  // Y axis label
   g.append("text")
     .attr("class", "axis-label")
     .attr("transform", "rotate(-90)")
@@ -267,7 +363,7 @@ function drawInflationChart() {
     .attr("text-anchor", "middle")
     .text("Purchasing power of original $100");
 
-  // ── Interactive hover ──
+  // Interactive hover
   const tooltip = d3.select("body").selectAll(".tooltip").data([null])
     .join("div").attr("class", "tooltip");
 
@@ -301,13 +397,16 @@ function drawInflationChart() {
         .style("top", (event.pageY - 36) + "px")
         .html(`
           <strong>${d.year}</strong><br/>
-          Your $100 from 2000<br/>is worth <strong>$${d.value}</strong> today
+          Your $100 from ${startYear}<br/>is worth <strong>$${d.value}</strong> today
         `);
     })
     .on("mouseleave", () => {
       hoverDot.style("opacity", 0);
       tooltip.style("opacity", 0);
     });
+
+  // Draw highlight band after chart is built
+  updateInflationChartHighlight();
 }
 
 // ─────────────────────────────────────────────
@@ -322,7 +421,6 @@ function drawMainChart() {
     d.asset_name === state.asset
   );
 
-  // Update slide 2 title and description
   const meta = episodeMeta.find(d => d.episode === state.episode);
   document.getElementById("slide-2-title").textContent =
     `$100 in ${state.asset} during the ${state.episode}`;

@@ -19,24 +19,28 @@
     </p>
 
     <div class="selectors">
-      <div class="selector-group">
-        <label>Choose a market episode</label>
-        <div class="episode-buttons">
-          <button class="episode-btn active" data-episode="Dot-Com Crash">Dot-Com Crash</button>
-          <button class="episode-btn" data-episode="Global Financial Crisis">2008 Crisis</button>
-          <button class="episode-btn" data-episode="COVID Crash">COVID Crash</button>
-          <button class="episode-btn" data-episode="2022 Inflation Shock">2022 Inflation</button>
-          <button class="episode-btn" data-episode="Regional Banking Crisis">Banking Crisis</button>
-          <button class="episode-btn" data-episode="AI Rally">AI Rally</button>
+    <div class="selector-row">
+
+        <div class="selector-group">
+        <label>Market episode</label>
+        <select id="episode-dropdown">
+            <option value="Dot-Com Crash" data-start="2000" data-end="2002">Dot-Com Crash (2000–2002)</option>
+            <option value="Global Financial Crisis" data-start="2007" data-end="2009">2008 Crisis (2007–2009)</option>
+            <option value="COVID Crash" data-start="2020" data-end="2020">COVID Crash (2020)</option>
+            <option value="2022 Inflation Shock" data-start="2022" data-end="2022">2022 Inflation Shock</option>
+            <option value="Regional Banking Crisis" data-start="2023" data-end="2023">Banking Crisis (2023)</option>
+            <option value="AI Rally" data-start="2023" data-end="2024">AI Rally (2023–2024)</option>
+        </select>
         </div>
-      </div>
 
-      <div class="selector-group">
-        <label>Choose an asset</label>
+        <div class="selector-group">
+        <label>Asset</label>
         <select id="asset-dropdown"></select>
-      </div>
+        </div>
 
-      <button class="begin-btn" id="begin-btn">See what happened →</button>
+    </div>
+
+    <button class="begin-btn" id="begin-btn">See what happened →</button>
     </div>
   </section>
 
@@ -48,28 +52,38 @@
 
     <!-- Slide 1: Inflation reality check -->
     <div class="slide active" id="slide-1">
-      <div class="slide-label">Before we start</div>
-      <h2>What is $100 actually worth?</h2>
-      <p class="slide-description">
-        Before seeing how your investment did, here's the reality:
-        a $100 bill sitting in a drawer since 2000 has lost nearly
-        half its purchasing power to inflation. Any investment has
-        to beat this just to break even. Hover over the line to explore.
-      </p>
-      <div class="chart-container">
-        <div id="inflation-chart"></div>
-      </div>
-      <div class="slide-nav">
-        <div class="slide-dots">
-          <div class="dot active"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
+        <div class="slide-label">Before we start</div>
+        <h2>What is $100 actually worth?</h2>
+
+        <!-- Dynamic sentence — updates when episode changes -->
+        <p class="slide-description" id="inflation-blurb">
+            At the start of the
+            <span class="highlight-pill" id="blurb-episode">Dot-Com Crash</span>
+            in <span class="highlight-pill" id="blurb-year">2000</span>,
+            $100 had a real purchasing power of
+            <span class="highlight-pill highlight-gold" id="blurb-start-value">$100.00</span>.
+            By the end of that episode in
+            <span class="highlight-pill" id="blurb-end-year">2002</span>,
+            inflation had quietly eaten it down to
+            <span class="highlight-pill highlight-red" id="blurb-end-value">$96.10</span>.
+            Any investment had to beat that just to break even.
+        </p>
+
+        <div class="chart-container">
+            <div id="inflation-chart"></div>
         </div>
-        <button class="nav-btn next" data-direction="next">
-          Now see your investment →
-        </button>
-      </div>
+
+        <div class="slide-nav">
+            <div class="slide-dots">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            </div>
+            <button class="nav-btn next" data-direction="next">
+            Now see your investment →
+            </button>
+        </div>
     </div>
 
     <!-- Slide 2: Main $100 investment chart -->
