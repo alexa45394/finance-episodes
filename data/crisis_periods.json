@@ -1,0 +1,38 @@
+[
+  {
+    "episode": "Dot-Com Crash",
+    "start": "2000-03-10",
+    "end": "2002-10-09",
+    "story": "Tech stocks fell sharply after the internet bubble burst."
+  },
+  {
+    "episode": "Global Financial Crisis",
+    "start": "2007-10-09",
+    "end": "2009-03-09",
+    "story": "Banks and financial assets fell during the housing and credit crisis."
+  },
+  {
+    "episode": "COVID Crash",
+    "start": "2020-02-19",
+    "end": "2020-06-30",
+    "story": "A sudden shutdown shocked the whole market, but some assets recovered faster than others."
+  },
+  {
+    "episode": "2022 Inflation Shock",
+    "start": "2022-01-03",
+    "end": "2022-12-30",
+    "story": "Rising rates hurt growth stocks, bonds, and many assets that were supposed to diversify risk."
+  },
+  {
+    "episode": "Regional Banking Crisis",
+    "start": "2023-03-06",
+    "end": "2023-05-31",
+    "story": "Banks became the fragile asset class, while parts of tech held up better."
+  },
+  {
+    "episode": "AI Rally",
+    "start": "2023-01-03",
+    "end": "2024-12-31",
+    "story": "Semiconductors, Bitcoin, and large tech became major winners in the new wealth cycle."
+  }
+]
