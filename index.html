@@ -12,35 +12,39 @@
 
   <!-- ── HERO ── -->
   <section id="hero">
+    <div class="hero-intro">
+      <p class="intro-text" id="intro-text">
+        <!-- SWAP IN whichever intro option you pick -->
+        Every market crisis rewrites the rules. Assets that protected
+        you in one crash destroyed you in the next. The "safe" choices
+        aren't always safe — and the "risky" ones aren't always risky.
+        Pick a crisis and an asset to see what actually happened to $100.
+      </p>
+    </div>
+
     <h1>Who Wins When<br/>Markets Break?</h1>
-    <p class="subtitle">
-      Pick a market crisis and an asset to see what happened
-      to $100 — and whether the "safe" choices actually held up.
-    </p>
 
     <div class="selectors">
-    <div class="selector-row">
-
+      <div class="selector-row">
         <div class="selector-group">
-        <label>Market episode</label>
-        <select id="episode-dropdown">
+          <label>Market episode</label>
+          <select id="episode-dropdown">
             <option value="Dot-Com Crash" data-start="2000" data-end="2002">Dot-Com Crash (2000–2002)</option>
             <option value="Global Financial Crisis" data-start="2007" data-end="2009">2008 Crisis (2007–2009)</option>
             <option value="COVID Crash" data-start="2020" data-end="2020">COVID Crash (2020)</option>
             <option value="2022 Inflation Shock" data-start="2022" data-end="2022">2022 Inflation Shock</option>
             <option value="Regional Banking Crisis" data-start="2023" data-end="2023">Banking Crisis (2023)</option>
             <option value="AI Rally" data-start="2023" data-end="2024">AI Rally (2023–2024)</option>
-        </select>
+          </select>
         </div>
 
         <div class="selector-group">
-        <label>Asset</label>
-        <select id="asset-dropdown"></select>
+          <label>Asset</label>
+          <select id="asset-dropdown"></select>
         </div>
+      </div>
 
-    </div>
-
-    <button class="begin-btn" id="begin-btn">See what happened →</button>
+      <button class="begin-btn" id="begin-btn">See what happened →</button>
     </div>
   </section>
 
@@ -52,38 +56,32 @@
 
     <!-- Slide 1: Inflation reality check -->
     <div class="slide active" id="slide-1">
-        <div class="slide-label">Before we start</div>
-        <h2>What is $100 actually worth?</h2>
-
-        <!-- Dynamic sentence — updates when episode changes -->
-        <p class="slide-description" id="inflation-blurb">
-            At the start of the
-            <span class="highlight-pill" id="blurb-episode">Dot-Com Crash</span>
-            in <span class="highlight-pill" id="blurb-year">2000</span>,
-            $100 had a real purchasing power of
-            <span class="highlight-pill highlight-gold" id="blurb-start-value">$100.00</span>.
-            By the end of that episode in
-            <span class="highlight-pill" id="blurb-end-year">2002</span>,
-            inflation had quietly eaten it down to
-            <span class="highlight-pill highlight-red" id="blurb-end-value">$96.10</span>.
-            Any investment had to beat that just to break even.
-        </p>
-
-        <div class="chart-container">
-            <div id="inflation-chart"></div>
+      <div class="slide-label">Before we start</div>
+      <h2>What is $100 actually worth?</h2>
+      <p class="slide-description" id="inflation-blurb">
+        At the start of the
+        <span class="highlight-pill" id="blurb-episode">Dot-Com Crash</span>
+        in <span class="highlight-pill" id="blurb-year">2000</span>,
+        $100 had a real purchasing power of
+        <span class="highlight-pill highlight-gold" id="blurb-start-value">$100.00</span>.
+        By the end of that episode in
+        <span class="highlight-pill" id="blurb-end-year">2002</span>,
+        inflation had quietly eaten it down to
+        <span class="highlight-pill highlight-red" id="blurb-end-value">$96.10</span>.
+        Any investment had to beat that just to break even.
+      </p>
+      <div class="chart-container">
+        <div id="inflation-chart"></div>
+      </div>
+      <div class="slide-nav">
+        <div class="slide-dots">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
         </div>
-
-        <div class="slide-nav">
-            <div class="slide-dots">
-            <div class="dot active"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-            </div>
-            <button class="nav-btn next" data-direction="next">
-            Now see your investment →
-            </button>
-        </div>
+        <button class="nav-btn next" data-direction="next">Now see your investment →</button>
+      </div>
     </div>
 
     <!-- Slide 2: Main $100 investment chart -->
@@ -94,6 +92,12 @@
       <div class="chart-container">
         <div id="main-chart"></div>
       </div>
+
+      <!-- SPACER: Person 2 drops bar chart of all asset performances here -->
+      <div class="teammate-spacer" id="bar-chart-spacer">
+        <p>[ Bar chart of all asset performances during this episode — Person 2 ]</p>
+      </div>
+
       <div class="slide-nav">
         <button class="nav-btn back" data-direction="back">← Back</button>
         <div class="slide-dots">
@@ -102,24 +106,20 @@
           <div class="dot"></div>
           <div class="dot"></div>
         </div>
-        <button class="nav-btn next" data-direction="next">
-          What kind of asset is this? →
-        </button>
+        <button class="nav-btn next" data-direction="next">What is this asset? →</button>
       </div>
     </div>
 
-    <!-- Slide 3: Person 2 drops in here -->
+    <!-- Slide 3: Asset + episode info (dynamic, no chart) -->
     <div class="slide" id="slide-3">
-      <div class="slide-label">Old money vs. new money</div>
-      <h2>Where does this asset fit?</h2>
-      <p class="slide-description">
-        Assets behave differently depending on whether they're
-        "old money" (traditional, stable) or "new money" (modern, high-growth).
-        Here's how your pick compares to the rest of its group.
-      </p>
-      <div class="chart-container">
-        <div id="old-vs-new-chart"></div>
+      <div class="slide-label">The context</div>
+      <div id="asset-info-panel"></div>
+
+      <!-- SPACER: Person 3 drops long-term line chart here -->
+      <div class="teammate-spacer" id="longterm-chart-spacer">
+        <p>[ Long-term line chart: asset vs S&P 500 vs old/new money from episode to today — Person 3 ]</p>
       </div>
+
       <div class="slide-nav">
         <button class="nav-btn back" data-direction="back">← Back</button>
         <div class="slide-dots">
@@ -128,13 +128,11 @@
           <div class="dot active"></div>
           <div class="dot"></div>
         </div>
-        <button class="nav-btn next" data-direction="next">
-          See the full picture →
-        </button>
+        <button class="nav-btn next" data-direction="next">See the big picture →</button>
       </div>
     </div>
 
-    <!-- Slide 4: Person 3 drops in here -->
+    <!-- Slide 4: Big picture (Person 3) -->
     <div class="slide" id="slide-4">
       <div class="slide-label">The big picture</div>
       <h2>No asset wins every time</h2>
@@ -153,15 +151,13 @@
           <div class="dot"></div>
           <div class="dot active"></div>
         </div>
-        <button class="nav-btn next" data-direction="next">
-          Explore more ↓
-        </button>
+        <button class="nav-btn next" data-direction="next">Explore more ↓</button>
       </div>
     </div>
 
   </div>
 
-  <!-- ── DEEP DIVE (teammates fill in) ── -->
+  <!-- ── DEEP DIVE ── -->
   <section id="deep-dive">
     <h2>Explore every asset</h2>
     <div id="glossary-cards"></div>
