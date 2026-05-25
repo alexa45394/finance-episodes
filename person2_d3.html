@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Asset Identity — Old Money vs New Money</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --old-color: #185FA5;
+    --new-color: #0F6E56;
+    --base-color: #5F5E5A;
+    --old-bg: #E6F1FB;
+    --new-bg: #E1F5EE;
+    --base-bg: #F1EFE8;
+    --text-primary: #1a1a1a;
+    --text-secondary: #5F5E5A;
+    --text-muted: #888780;
+    --border: #e2e0d8;
+    --surface: #fafaf8;
+    --card-bg: #ffffff;
+    --grid-line: #f0ede6;
+    font-family: 'Georgia', serif;
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 32px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Episode selector ─────────────────────────── */
+  .ep-section { margin-bottom: 28px; }
+
+  .ep-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .ep-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ep-btn {
+    padding: 7px 15px;
+    font-size: 13px;
+    font-family: 'Georgia', serif;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1;
+  }
+  .ep-btn:hover { border-color: #aaa; color: var(--text-primary); }
+  .ep-btn.active {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: #fff;
+    font-style: italic;
+  }
+
+  .story-line {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-top: 12px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border);
+  }
+
+  /* ── Asset grid ───────────────────────────────── */
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .asset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .asset-card {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-left-width: 3px;
+    user-select: none;
+  }
+  .asset-card:hover { border-color: #bbb; }
+  .asset-card.selected { box-shadow: 0 0 0 1.5px var(--text-primary); }
+  .asset-card.old  { border-left-color: var(--old-color); }
+  .asset-card.new  { border-left-color: var(--new-color); }
+  .asset-card.base { border-left-color: var(--base-color); }
+
+  .card-ticker { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; font-family: monospace; }
+  .card-name   { font-size: 12px; font-weight: bold; color: var(--text-primary); margin-bottom: 3px; }
+  .card-group  { font-size: 10px; font-style: italic; }
+  .card-group.old  { color: var(--old-color); }
+  .card-group.new  { color: var(--new-color); }
+  .card-group.base { color: var(--base-color); }
+
+  /* ── Info panel ───────────────────────────────── */
+  .info-panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    background: var(--card-bg);
+    margin-bottom: 24px;
+    display: none;
+  }
+  .info-panel.visible { display: block; }
+
+  .info-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .group-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-style: italic;
+  }
+  .group-badge.old  { background: var(--old-bg);  color: var(--old-color); }
+  .group-badge.new  { background: var(--new-bg);  color: var(--new-color); }
+  .group-badge.base { background: var(--base-bg); color: var(--base-color); }
+
+  .info-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--text-primary);
+  }
+  .info-ticker {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: monospace;
+    font-weight: normal;
+    margin-left: 4px;
+  }
+
+  .info-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 14px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .stat-box {
+    flex: 1;
+    min-width: 100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 14px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  .stat-val   { font-size: 18px; font-weight: bold; }
+  .stat-val.pos { color: var(--new-color); }
+  .stat-val.neg { color: #A32D2D; }
+  .stat-val.neutral { color: var(--text-primary); }
+
+  /* ── Chart section ────────────────────────────── */
+  .chart-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+    background: var(--card-bg);
+  }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chart-title { font-size: 15px; font-weight: bold; color: var(--text-primary); }
+  .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .annotation-pill {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-style: italic;
+    white-space: nowrap;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    align-items: center;
+  }
+  .leg-item { display: flex; align-items: center; gap: 7px; }
+
+  .leg-line {
+    width: 28px;
+    height: 2px;
+    border-radius: 1px;
+  }
+  .leg-line.old { background: var(--old-color); }
+  .leg-line.new {
+    background: repeating-linear-gradient(
+      90deg,
+      var(--new-color) 0, var(--new-color) 5px,
+      transparent 5px, transparent 9px
+    );
+  }
+
+  #chart-container { width: 100%; }
+
+  /* D3 chart styles */
+  .axis path, .axis line { stroke: var(--border); stroke-width: 0.5px; }
+  .axis text { fill: var(--text-muted); font-size: 11px; font-family: 'Georgia', serif; }
+  .grid-line { stroke: var(--grid-line); stroke-width: 0.5px; }
+  .baseline-line { stroke: var(--border); stroke-width: 1px; stroke-dasharray: 3 3; }
+
+  .line-old { fill: none; stroke: var(--old-color); stroke-width: 2px; }
+  .line-new { fill: none; stroke: var(--new-color); stroke-width: 2px; stroke-dasharray: 7 4; }
+
+  .tooltip-box {
+    position: absolute;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: 'Georgia', serif;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    min-width: 130px;
+    z-index: 10;
+  }
+  .tooltip-day { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+  .tooltip-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+  .tooltip-label { color: var(--text-secondary); }
+  .tooltip-val { font-weight: bold; }
+
+  .crosshair { stroke: var(--border); stroke-width: 1px; stroke-dasharray: 3 3; opacity: 0; }
+</style>
+</head>
+<body>
+
+<!-- Episode selector -->
+<div class="ep-section">
+  <div class="ep-label">Market episode</div>
+  <div class="ep-bar" id="ep-bar"></div>
+  <div class="story-line" id="story-line"></div>
+</div>
+
+<!-- Asset grid -->
+<div class="section-label">Select an asset to learn more</div>
+<div class="asset-grid" id="asset-grid"></div>
+
+<!-- Info panel -->
+<div class="info-panel" id="info-panel"></div>
+
+<!-- Chart -->
+<div class="chart-section">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Old money vs new money</div>
+      <div class="chart-subtitle">Average value of $100 invested at episode start</div>
+    </div>
+    <div class="annotation-pill" id="annotation-pill"></div>
+  </div>
+  <div class="legend">
+    <div class="leg-item">
+      <div class="leg-line old"></div>
+      <span>Old money (avg)</span>
+    </div>
+    <div class="leg-item">
+      <div class="leg-line new"></div>
+      <span>New money (avg)</span>
+    </div>
+  </div>
+  <div id="chart-container"></div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip-box" id="tooltip"></div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────────
+
+const RAW = {"oldVsNew":[{"episode":"2022 Inflation Shock","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"2022 Inflation Shock","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"2022 Inflation Shock","episode_day":5,"group":"New money","indexed_100":89.83},{"episode":"2022 Inflation Shock","episode_day":10,"group":"New money","indexed_100":91.41},{"episode":"2022 Inflation Shock","episode_day":10,"group":"Old money","indexed_100":103.73},{"episode":"2022 Inflation Shock","episode_day":15,"group":"New money","indexed_100":89.57},{"episode":"2022 Inflation Shock","episode_day":15,"group":"Old money","indexed_100":102.58},{"episode":"2022 Inflation Shock","episode_day":20,"group":"New money","indexed_100":78.08},{"episode":"2022 Inflation Shock","episode_day":25,"group":"New money","indexed_100":82.58},{"episode":"2022 Inflation Shock","episode_day":25,"group":"Old money","indexed_100":100.9},{"episode":"2022 Inflation Shock","episode_day":30,"group":"New money","indexed_100":85.97},{"episode":"2022 Inflation Shock","episode_day":30,"group":"Old money","indexed_100":102.97},{"episode":"2022 Inflation Shock","episode_day":35,"group":"New money","indexed_100":86.86},{"episode":"2022 Inflation Shock","episode_day":35,"group":"Old money","indexed_100":103.34},{"episode":"2022 Inflation Shock","episode_day":40,"group":"New money","indexed_100":90.93},{"episode":"2022 Inflation Shock","episode_day":45,"group":"New money","indexed_100":83.26},{"episode":"2022 Inflation Shock","episode_day":45,"group":"Old money","indexed_100":102.41},{"episode":"2022 Inflation Shock","episode_day":50,"group":"New money","indexed_100":80.29},{"episode":"2022 Inflation Shock","episode_day":50,"group":"Old money","indexed_100":102.01},{"episode":"2022 Inflation Shock","episode_day":55,"group":"New money","indexed_100":81.17},{"episode":"2022 Inflation Shock","episode_day":60,"group":"New money","indexed_100":79.31},{"episode":"2022 Inflation Shock","episode_day":60,"group":"Old money","indexed_100":104.88},{"episode":"2022 Inflation Shock","episode_day":65,"group":"New money","indexed_100":80.77},{"episode":"2022 Inflation Shock","episode_day":65,"group":"Old money","indexed_100":104.34},{"episode":"2022 Inflation Shock","episode_day":70,"group":"New money","indexed_100":74.94},{"episode":"2022 Inflation Shock","episode_day":70,"group":"Old money","indexed_100":103.36},{"episode":"2022 Inflation Shock","episode_day":75,"group":"New money","indexed_100":90.81},{"episode":"2022 Inflation Shock","episode_day":80,"group":"New money","indexed_100":86.14},{"episode":"2022 Inflation Shock","episode_day":80,"group":"Old money","indexed_100":105.75},{"episode":"2022 Inflation Shock","episode_day":85,"group":"New money","indexed_100":90.3},{"episode":"2022 Inflation Shock","episode_day":85,"group":"Old money","indexed_100":106.43},{"episode":"2022 Inflation Shock","episode_day":90,"group":"New money","indexed_100":99.99},{"episode":"2022 Inflation Shock","episode_day":95,"group":"New money","indexed_100":81.16},{"episode":"2022 Inflation Shock","episode_day":95,"group":"Old money","indexed_100":105.21},{"episode":"2022 Inflation Shock","episode_day":100,"group":"New money","indexed_100":80.44},{"episode":"2022 Inflation Shock","episode_day":100,"group":"Old money","indexed_100":104.98},{"episode":"2022 Inflation Shock","episode_day":105,"group":"New money","indexed_100":78.44},{"episode":"2022 Inflation Shock","episode_day":105,"group":"Old money","indexed_100":104.73},{"episode":"2022 Inflation Shock","episode_day":110,"group":"New money","indexed_100":84.99},{"episode":"2022 Inflation Shock","episode_day":115,"group":"New money","indexed_100":75.64},{"episode":"2022 Inflation Shock","episode_day":115,"group":"Old money","indexed_100":101.57},{"episode":"2022 Inflation Shock","episode_day":120,"group":"New money","indexed_100":73.96},{"episode":"2022 Inflation Shock","episode_day":120,"group":"Old money","indexed_100":100.34},{"episode":"2022 Inflation Shock","episode_day":125,"group":"New money","indexed_100":73.31},{"episode":"2022 Inflation Shock","episode_day":130,"group":"New money","indexed_100":66.88},{"episode":"2022 Inflation Shock","episode_day":130,"group":"Old money","indexed_100":99.1},{"episode":"2022 Inflation Shock","episode_day":135,"group":"New money","indexed_100":64.91},{"episode":"2022 Inflation Shock","episode_day":135,"group":"Old money","indexed_100":99.46},{"episode":"2022 Inflation Shock","episode_day":140,"group":"New money","indexed_100":65.73},{"episode":"2022 Inflation Shock","episode_day":140,"group":"Old money","indexed_100":101.17},{"episode":"2022 Inflation Shock","episode_day":145,"group":"New money","indexed_100":62.02},{"episode":"2022 Inflation Shock","episode_day":150,"group":"New money","indexed_100":70.35},{"episode":"2022 Inflation Shock","episode_day":150,"group":"Old money","indexed_100":104.46},{"episode":"2022 Inflation Shock","episode_day":155,"group":"New money","indexed_100":69.72},{"episode":"2022 Inflation Shock","episode_day":155,"group":"Old money","indexed_100":105.33},{"episode":"2022 Inflation Shock","episode_day":160,"group":"New money","indexed_100":57.61},{"episode":"2022 Inflation Shock","episode_day":165,"group":"New money","indexed_100":57.77},{"episode":"2022 Inflation Shock","episode_day":165,"group":"Old money","indexed_100":93.46},{"episode":"2022 Inflation Shock","episode_day":170,"group":"New money","indexed_100":58.84},{"episode":"2022 Inflation Shock","episode_day":170,"group":"Old money","indexed_100":94.72},{"episode":"2022 Inflation Shock","episode_day":175,"group":"New money","indexed_100":61.6},{"episode":"2022 Inflation Shock","episode_day":175,"group":"Old money","indexed_100":95.92},{"episode":"2022 Inflation Shock","episode_day":180,"group":"New money","indexed_100":41.42},{"episode":"2022 Inflation Shock","episode_day":185,"group":"New money","indexed_100":62.06},{"episode":"2022 Inflation Shock","episode_day":185,"group":"Old money","indexed_100":94.71},{"episode":"2022 Inflation Shock","episode_day":190,"group":"New money","indexed_100":59.45},{"episode":"2022 Inflation Shock","episode_day":190,"group":"Old money","indexed_100":93.67},{"episode":"2022 Inflation Shock","episode_day":195,"group":"New money","indexed_100":44.73},{"episode":"2022 Inflation Shock","episode_day":200,"group":"New money","indexed_100":64.48},{"episode":"2022 Inflation Shock","episode_day":200,"group":"Old money","indexed_100":95.69},{"episode":"2022 Inflation Shock","episode_day":205,"group":"New money","indexed_100":65.5},{"episode":"2022 Inflation Shock","episode_day":205,"group":"Old money","indexed_100":97.47},{"episode":"2022 Inflation Shock","episode_day":210,"group":"New money","indexed_100":66.74},{"episode":"2022 Inflation Shock","episode_day":210,"group":"Old money","indexed_100":100.0},{"episode":"2022 Inflation Shock","episode_day":215,"group":"New money","indexed_100":49.42},{"episode":"2022 Inflation Shock","episode_day":220,"group":"New money","indexed_100":68.82},{"episode":"2022 Inflation Shock","episode_day":220,"group":"Old money","indexed_100":101.45},{"episode":"2022 Inflation Shock","episode_day":225,"group":"New money","indexed_100":70.08},{"episode":"2022 Inflation Shock","episode_day":225,"group":"Old money","indexed_100":102.5},{"episode":"2022 Inflation Shock","episode_day":230,"group":"New money","indexed_100":46.35},{"episode":"2022 Inflation Shock","episode_day":235,"group":"New money","indexed_100":63.03},{"episode":"2022 Inflation Shock","episode_day":235,"group":"Old money","indexed_100":101.31},{"episode":"2022 Inflation Shock","episode_day":240,"group":"New money","indexed_100":61.29},{"episode":"2022 Inflation Shock","episode_day":240,"group":"Old money","indexed_100":99.2},{"episode":"2022 Inflation Shock","episode_day":245,"group":"New money","indexed_100":42.65},{"episode":"2022 Inflation Shock","episode_day":250,"group":"New money","indexed_100":46.67},{"episode":"2022 Inflation Shock","episode_day":255,"group":"New money","indexed_100":59.92},{"episode":"2022 Inflation Shock","episode_day":255,"group":"Old money","indexed_100":98.69},{"episode":"2022 Inflation Shock","episode_day":260,"group":"New money","indexed_100":58.72},{"episode":"2022 Inflation Shock","episode_day":260,"group":"Old money","indexed_100":97.63},{"episode":"2022 Inflation Shock","episode_day":265,"group":"New money","indexed_100":40.47},{"episode":"2022 Inflation Shock","episode_day":270,"group":"New money","indexed_100":54.88},{"episode":"2022 Inflation Shock","episode_day":270,"group":"Old money","indexed_100":91.51},{"episode":"2022 Inflation Shock","episode_day":275,"group":"New money","indexed_100":58.41},{"episode":"2022 Inflation Shock","episode_day":275,"group":"Old money","indexed_100":96.75},{"episode":"2022 Inflation Shock","episode_day":280,"group":"New money","indexed_100":54.23},{"episode":"2022 Inflation Shock","episode_day":280,"group":"Old money","indexed_100":93.79},{"episode":"2022 Inflation Shock","episode_day":285,"group":"New money","indexed_100":41.04},{"episode":"2022 Inflation Shock","episode_day":290,"group":"New money","indexed_100":54.25},{"episode":"2022 Inflation Shock","episode_day":290,"group":"Old money","indexed_100":93.85},{"episode":"2022 Inflation Shock","episode_day":295,"group":"New money","indexed_100":57.44},{"episode":"2022 Inflation Shock","episode_day":295,"group":"Old money","indexed_100":97.1},{"episode":"2022 Inflation Shock","episode_day":300,"group":"New money","indexed_100":44.42},{"episode":"2022 Inflation Shock","episode_day":305,"group":"New money","indexed_100":55.62},{"episode":"2022 Inflation Shock","episode_day":305,"group":"Old money","indexed_100":99.57},{"episode":"2022 Inflation Shock","episode_day":310,"group":"New money","indexed_100":52.9},{"episode":"2022 Inflation Shock","episode_day":310,"group":"Old money","indexed_100":98.43},{"episode":"2022 Inflation Shock","episode_day":315,"group":"New money","indexed_100":58.47},{"episode":"2022 Inflation Shock","episode_day":315,"group":"Old money","indexed_100":102.15},{"episode":"2022 Inflation Shock","episode_day":320,"group":"New money","indexed_100":35.97},{"episode":"2022 Inflation Shock","episode_day":325,"group":"New money","indexed_100":35.74},{"episode":"2022 Inflation Shock","episode_day":330,"group":"New money","indexed_100":56.8},{"episode":"2022 Inflation Shock","episode_day":330,"group":"Old money","indexed_100":102.28},{"episode":"2022 Inflation Shock","episode_day":335,"group":"New money","indexed_100":36.87},{"episode":"2022 Inflation Shock","episode_day":340,"group":"New money","indexed_100":57.6},{"episode":"2022 Inflation Shock","episode_day":340,"group":"Old money","indexed_100":99.82},{"episode":"2022 Inflation Shock","episode_day":345,"group":"New money","indexed_100":58.79},{"episode":"2022 Inflation Shock","episode_day":345,"group":"Old money","indexed_100":101.22},{"episode":"2022 Inflation Shock","episode_day":350,"group":"New money","indexed_100":55.06},{"episode":"2022 Inflation Shock","episode_day":350,"group":"Old money","indexed_100":98.96},{"episode":"2022 Inflation Shock","episode_day":355,"group":"New money","indexed_100":36.26},{"episode":"2022 Inflation Shock","episode_day":360,"group":"New money","indexed_100":54.35},{"episode":"2022 Inflation Shock","episode_day":360,"group":"Old money","indexed_100":100.97},{"episode":"AI Rally","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"AI Rally","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"AI Rally","episode_day":5,"group":"New money","indexed_100":102.47},{"episode":"AI Rally","episode_day":10,"group":"New money","indexed_100":112.35},{"episode":"AI Rally","episode_day":10,"group":"Old money","indexed_100":104.44},{"episode":"AI Rally","episode_day":15,"group":"New money","indexed_100":112.84},{"episode":"AI Rally","episode_day":15,"group":"Old money","indexed_100":102.7},{"episode":"AI Rally","episode_day":20,"group":"New money","indexed_100":119.79},{"episode":"AI Rally","episode_day":20,"group":"Old money","indexed_100":103.84},{"episode":"AI Rally","episode_day":25,"group":"New money","indexed_100":138.08},{"episode":"AI Rally","episode_day":30,"group":"New money","indexed_100":129.26},{"episode":"AI Rally","episode_day":30,"group":"Old money","indexed_100":104.87},{"episode":"AI Rally","episode_day":35,"group":"New money","indexed_100":127.88},{"episode":"AI Rally","episode_day":35,"group":"Old money","indexed_100":104.37},{"episode":"AI Rally","episode_day":40,"group":"New money","indexed_100":130.63},{"episode":"AI Rally","episode_day":45,"group":"New money","indexed_100":126.51},{"episode":"AI Rally","episode_day":45,"group":"Old money","indexed_100":102.15},{"episode":"AI Rally","episode_day":50,"group":"New money","indexed_100":123.08},{"episode":"AI Rally","episode_day":50,"group":"Old money","indexed_100":100.37},{"episode":"AI Rally","episode_day":55,"group":"New money","indexed_100":121.89},{"episode":"AI Rally","episode_day":55,"group":"Old money","indexed_100":100.48},{"episode":"AI Rally","episode_day":60,"group":"New money","indexed_100":134.01},{"episode":"AI Rally","episode_day":65,"group":"New money","indexed_100":117.45},{"episode":"AI Rally","episode_day":65,"group":"Old money","indexed_100":96.87},{"episode":"AI Rally","episode_day":70,"group":"New money","indexed_100":123.92},{"episode":"AI Rally","episode_day":70,"group":"Old money","indexed_100":94.86},{"episode":"AI Rally","episode_day":75,"group":"New money","indexed_100":168.1},{"episode":"AI Rally","episode_day":80,"group":"New money","indexed_100":130.31},{"episode":"AI Rally","episode_day":80,"group":"Old money","indexed_100":94.38},{"episode":"AI Rally","episode_day":85,"group":"New money","indexed_100":132.54},{"episode":"AI Rally","episode_day":85,"group":"Old money","indexed_100":95.61},{"episode":"AI Rally","episode_day":90,"group":"New money","indexed_100":134.06},{"episode":"AI Rally","episode_day":90,"group":"Old money","indexed_100":97.14},{"episode":"AI Rally","episode_day":95,"group":"New money","indexed_100":167.55},{"episode":"AI Rally","episode_day":100,"group":"New money","indexed_100":135.71},{"episode":"AI Rally","episode_day":100,"group":"Old money","indexed_100":98.33},{"episode":"AI Rally","episode_day":105,"group":"New money","indexed_100":135.6},{"episode":"AI Rally","episode_day":105,"group":"Old money","indexed_100":97.64},{"episode":"AI Rally","episode_day":110,"group":"New money","indexed_100":165.42},{"episode":"AI Rally","episode_day":115,"group":"New money","indexed_100":132.28},{"episode":"AI Rally","episode_day":115,"group":"Old money","indexed_100":97.52},{"episode":"AI Rally","episode_day":120,"group":"New money","indexed_100":130.02},{"episode":"AI Rally","episode_day":120,"group":"Old money","indexed_100":94.63},{"episode":"AI Rally","episode_day":125,"group":"New money","indexed_100":131.98},{"episode":"AI Rally","episode_day":125,"group":"Old money","indexed_100":94.48},{"episode":"AI Rally","episode_day":130,"group":"New money","indexed_100":160.58},{"episode":"AI Rally","episode_day":135,"group":"New money","indexed_100":135.65},{"episode":"AI Rally","episode_day":135,"group":"Old money","indexed_100":93.63},{"episode":"AI Rally","episode_day":140,"group":"New money","indexed_100":135.31},{"episode":"AI Rally","episode_day":140,"group":"Old money","indexed_100":93.85},{"episode":"AI Rally","episode_day":145,"group":"New money","indexed_100":168.38},{"episode":"AI Rally","episode_day":150,"group":"New money","indexed_100":143.03},{"episode":"AI Rally","episode_day":150,"group":"Old money","indexed_100":94.23},{"episode":"AI Rally","episode_day":155,"group":"New money","indexed_100":141.03},{"episode":"AI Rally","episode_day":155,"group":"Old money","indexed_100":95.59},{"episode":"AI Rally","episode_day":160,"group":"New money","indexed_100":144.39},{"episode":"AI Rally","episode_day":160,"group":"Old money","indexed_100":95.19},{"episode":"AI Rally","episode_day":165,"group":"New money","indexed_100":158.94},{"episode":"AI Rally","episode_day":170,"group":"New money","indexed_100":149.25},{"episode":"AI Rally","episode_day":170,"group":"Old money","indexed_100":93.66},{"episode":"AI Rally","episode_day":175,"group":"New money","indexed_100":150.75},{"episode":"AI Rally","episode_day":175,"group":"Old money","indexed_100":94.13},{"episode":"AI Rally","episode_day":180,"group":"New money","indexed_100":183.58},{"episode":"AI Rally","episode_day":185,"group":"New money","indexed_100":150.38},{"episode":"AI Rally","episode_day":185,"group":"Old money","indexed_100":94.42},{"episode":"AI Rally","episode_day":190,"group":"New money","indexed_100":154.93},{"episode":"AI Rally","episode_day":190,"group":"Old money","indexed_100":96.91},{"episode":"AI Rally","episode_day":195,"group":"New money","indexed_100":158.57},{"episode":"AI Rally","episode_day":195,"group":"Old money","indexed_100":96.54},{"episode":"AI Rally","episode_day":200,"group":"New money","indexed_100":178.49},{"episode":"AI Rally","episode_day":205,"group":"New money","indexed_100":154.25},{"episode":"AI Rally","episode_day":205,"group":"Old money","indexed_100":98.69},{"episode":"AI Rally","episode_day":210,"group":"New money","indexed_100":158.08},{"episode":"AI Rally","episode_day":210,"group":"Old money","indexed_100":98.76},{"episode":"AI Rally","episode_day":215,"group":"New money","indexed_100":174.11},{"episode":"AI Rally","episode_day":220,"group":"New money","indexed_100":147.33},{"episode":"AI Rally","episode_day":220,"group":"Old money","indexed_100":97.87},{"episode":"AI Rally","episode_day":225,"group":"New money","indexed_100":145.19},{"episode":"AI Rally","episode_day":225,"group":"Old money","indexed_100":95.26},{"episode":"AI Rally","episode_day":230,"group":"New money","indexed_100":143.3},{"episode":"AI Rally","episode_day":230,"group":"Old money","indexed_100":95.08},{"episode":"AI Rally","episode_day":235,"group":"New money","indexed_100":155.93},{"episode":"AI Rally","episode_day":240,"group":"New money","indexed_100":148.14},{"episode":"AI Rally","episode_day":240,"group":"Old money","indexed_100":96.53},{"episode":"AI Rally","episode_day":245,"group":"New money","indexed_100":148.4},{"episode":"AI Rally","episode_day":245,"group":"Old money","indexed_100":96.07},{"episode":"AI Rally","episode_day":250,"group":"New money","indexed_100":154.87},{"episode":"AI Rally","episode_day":255,"group":"New money","indexed_100":145.22},{"episode":"AI Rally","episode_day":255,"group":"Old money","indexed_100":96.87},{"episode":"AI Rally","episode_day":260,"group":"New money","indexed_100":142.96},{"episode":"AI Rally","episode_day":260,"group":"Old money","indexed_100":96.25},{"episode":"AI Rally","episode_day":265,"group":"New money","indexed_100":139.87},{"episode":"AI Rally","episode_day":265,"group":"Old money","indexed_100":94.77},{"episode":"AI Rally","episode_day":270,"group":"New money","indexed_100":161.68},{"episode":"AI Rally","episode_day":275,"group":"New money","indexed_100":141.44},{"episode":"AI Rally","episode_day":275,"group":"Old money","indexed_100":89.99},{"episode":"AI Rally","episode_day":280,"group":"New money","indexed_100":144.86},{"episode":"AI Rally","episode_day":280,"group":"Old money","indexed_100":92.2},{"episode":"AI Rally","episode_day":285,"group":"New money","indexed_100":162.83},{"episode":"AI Rally","episode_day":290,"group":"New money","indexed_100":141.38},{"episode":"AI Rally","episode_day":290,"group":"Old money","indexed_100":91.57},{"episode":"AI Rally","episode_day":295,"group":"New money","indexed_100":145.51},{"episode":"AI Rally","episode_day":295,"group":"Old money","indexed_100":91.15},{"episode":"AI Rally","episode_day":300,"group":"New money","indexed_100":144.59},{"episode":"AI Rally","episode_day":300,"group":"Old money","indexed_100":91.05},{"episode":"AI Rally","episode_day":305,"group":"New money","indexed_100":210.33},{"episode":"AI Rally","episode_day":310,"group":"New money","indexed_100":156.58},{"episode":"AI Rally","episode_day":310,"group":"Old money","indexed_100":92.29},{"episode":"AI Rally","episode_day":315,"group":"New money","indexed_100":161.38},{"episode":"AI Rally","episode_day":315,"group":"Old money","indexed_100":95.13},{"episode":"AI Rally","episode_day":320,"group":"New money","indexed_100":224.14},{"episode":"AI Rally","episode_day":325,"group":"New money","indexed_100":166.77},{"episode":"AI Rally","episode_day":325,"group":"Old money","indexed_100":96.08},{"episode":"AI Rally","episode_day":330,"group":"New money","indexed_100":168.47},{"episode":"AI Rally","episode_day":330,"group":"Old money","indexed_100":96.96},{"episode":"AI Rally","episode_day":335,"group":"New money","indexed_100":173.39},{"episode":"AI Rally","episode_day":335,"group":"Old money","indexed_100":98.38},{"episode":"AI Rally","episode_day":340,"group":"New money","indexed_100":262.15},{"episode":"AI Rally","episode_day":345,"group":"New money","indexed_100":182.23},{"episode":"AI Rally","episode_day":345,"group":"Old money","indexed_100":102.45},{"episode":"AI Rally","episode_day":350,"group":"New money","indexed_100":183.3},{"episode":"AI Rally","episode_day":350,"group":"Old money","indexed_100":102.4},{"episode":"AI Rally","episode_day":355,"group":"New money","indexed_100":257.89},{"episode":"AI Rally","episode_day":360,"group":"New money","indexed_100":182.78},{"episode":"AI Rally","episode_day":360,"group":"Old money","indexed_100":102.18},{"episode":"AI Rally","episode_day":365,"group":"New money","indexed_100":177.36},{"episode":"AI Rally","episode_day":365,"group":"Old money","indexed_100":102.16},{"episode":"AI Rally","episode_day":370,"group":"New money","indexed_100":185.7},{"episode":"AI Rally","episode_day":370,"group":"Old money","indexed_100":102.09},{"episode":"AI Rally","episode_day":375,"group":"New money","indexed_100":256.85},{"episode":"AI Rally","episode_day":380,"group":"New money","indexed_100":179.21},{"episode":"AI Rally","episode_day":380,"group":"Old money","indexed_100":98.67},{"episode":"AI Rally","episode_day":385,"group":"New money","indexed_100":182.2},{"episode":"AI Rally","episode_day":385,"group":"Old money","indexed_100":99.8},{"episode":"AI Rally","episode_day":390,"group":"New money","indexed_100":252.01},{"episode":"AI Rally","episode_day":395,"group":"New money","indexed_100":186.65},{"episode":"AI Rally","episode_day":395,"group":"Old money","indexed_100":100.47},{"episode":"AI Rally","episode_day":400,"group":"New money","indexed_100":190.01},{"episode":"AI Rally","episode_day":400,"group":"Old money","indexed_100":99.63},{"episode":"AI Rally","episode_day":405,"group":"New money","indexed_100":200.97},{"episode":"AI Rally","episode_day":405,"group":"Old money","indexed_100":100.28},{"episode":"AI Rally","episode_day":410,"group":"New money","indexed_100":309.73},{"episode":"AI Rally","episode_day":415,"group":"New money","indexed_100":202.6},{"episode":"AI Rally","episode_day":415,"group":"Old money","indexed_100":100.84},{"episode":"AI Rally","episode_day":420,"group":"New money","indexed_100":211.46},{"episode":"AI Rally","episode_day":420,"group":"Old money","indexed_100":100.96},{"episode":"AI Rally","episode_day":425,"group":"New money","indexed_100":378.7},{"episode":"AI Rally","episode_day":430,"group":"New money","indexed_100":227.82},{"episode":"AI Rally","episode_day":430,"group":"Old money","indexed_100":104.41},{"episode":"AI Rally","episode_day":435,"group":"New money","indexed_100":233.31},{"episode":"AI Rally","episode_day":435,"group":"Old money","indexed_100":104.68},{"episode":"AI Rally","episode_day":440,"group":"New money","indexed_100":224.09},{"episode":"AI Rally","episode_day":440,"group":"Old money","indexed_100":104.09},{"episode":"AI Rally","episode_day":445,"group":"New money","indexed_100":384.07},{"episode":"AI Rally","episode_day":450,"group":"New money","indexed_100":230.94},{"episode":"AI Rally","episode_day":450,"group":"Old money","indexed_100":107.79},{"episode":"AI Rally","episode_day":455,"group":"New money","indexed_100":222.61},{"episode":"AI Rally","episode_day":455,"group":"Old money","indexed_100":107.47},{"episode":"AI Rally","episode_day":460,"group":"New money","indexed_100":415.85},{"episode":"AI Rally","episode_day":465,"group":"New money","indexed_100":222.55},{"episode":"AI Rally","episode_day":465,"group":"Old money","indexed_100":106.05},{"episode":"AI Rally","episode_day":470,"group":"New money","indexed_100":209.47},{"episode":"AI Rally","episode_day":470,"group":"Old money","indexed_100":105.3},{"episode":"AI Rally","episode_day":475,"group":"New money","indexed_100":212.69},{"episode":"AI Rally","episode_day":475,"group":"Old money","indexed_100":106.93},{"episode":"AI Rally","episode_day":480,"group":"New money","indexed_100":380.21},{"episode":"AI Rally","episode_day":485,"group":"New money","indexed_100":207.86},{"episode":"AI Rally","episode_day":485,"group":"Old money","indexed_100":106.61},{"episode":"AI Rally","episode_day":490,"group":"New money","indexed_100":216.06},{"episode":"AI Rally","episode_day":490,"group":"Old money","indexed_100":108.2},{"episode":"AI Rally","episode_day":495,"group":"New money","indexed_100":368.4},{"episode":"AI Rally","episode_day":500,"group":"New money","indexed_100":225.67},{"episode":"AI Rally","episode_day":500,"group":"Old money","indexed_100":111.31},{"episode":"AI Rally","episode_day":505,"group":"New money","indexed_100":229.96},{"episode":"AI Rally","episode_day":505,"group":"Old money","indexed_100":109.69},{"episode":"AI Rally","episode_day":510,"group":"New money","indexed_100":416.04},{"episode":"AI Rally","episode_day":515,"group":"New money","indexed_100":405.92},{"episode":"AI Rally","episode_day":520,"group":"New money","indexed_100":235.51},{"episode":"AI Rally","episode_day":520,"group":"Old money","indexed_100":108.2},{"episode":"AI Rally","episode_day":525,"group":"New money","indexed_100":232.8},{"episode":"AI Rally","episode_day":525,"group":"Old money","indexed_100":106.85},{"episode":"AI Rally","episode_day":530,"group":"New money","indexed_100":399.52},{"episode":"AI Rally","episode_day":535,"group":"New money","indexed_100":232.52},{"episode":"AI Rally","episode_day":535,"group":"Old money","indexed_100":107.32},{"episode":"AI Rally","episode_day":540,"group":"New money","indexed_100":227.74},{"episode":"AI Rally","episode_day":540,"group":"Old money","indexed_100":107.36},{"episode":"AI Rally","episode_day":545,"group":"New money","indexed_100":231.18},{"episode":"AI Rally","episode_day":545,"group":"Old money","indexed_100":107.6},{"episode":"AI Rally","episode_day":550,"group":"New money","indexed_100":349.54},{"episode":"AI Rally","episode_day":555,"group":"New money","indexed_100":228.8},{"episode":"AI Rally","episode_day":555,"group":"Old money","indexed_100":111.0},{"episode":"AI Rally","episode_day":560,"group":"New money","indexed_100":241.69},{"episode":"AI Rally","episode_day":560,"group":"Old money","indexed_100":113.71},{"episode":"AI Rally","episode_day":565,"group":"New money","indexed_100":408.6},{"episode":"AI Rally","episode_day":570,"group":"New money","indexed_100":230.63},{"episode":"AI Rally","episode_day":570,"group":"Old money","indexed_100":113.92},{"episode":"AI Rally","episode_day":575,"group":"New money","indexed_100":228.89},{"episode":"AI Rally","episode_day":575,"group":"Old money","indexed_100":115.31},{"episode":"AI Rally","episode_day":580,"group":"New money","indexed_100":199.32},{"episode":"AI Rally","episode_day":580,"group":"Old money","indexed_100":110.89},{"episode":"AI Rally","episode_day":585,"group":"New money","indexed_100":365.39},{"episode":"AI Rally","episode_day":590,"group":"New money","indexed_100":219.85},{"episode":"AI Rally","episode_day":590,"group":"Old money","indexed_100":114.14},{"episode":"AI Rally","episode_day":595,"group":"New money","indexed_100":223.32},{"episode":"AI Rally","episode_day":595,"group":"Old money","indexed_100":115.07},{"episode":"AI Rally","episode_day":600,"group":"New money","indexed_100":385.7},{"episode":"AI Rally","episode_day":605,"group":"New money","indexed_100":221.76},{"episode":"AI Rally","episode_day":605,"group":"Old money","indexed_100":117.45},{"episode":"AI Rally","episode_day":610,"group":"New money","indexed_100":212.39},{"episode":"AI Rally","episode_day":610,"group":"Old money","indexed_100":116.69},{"episode":"AI Rally","episode_day":615,"group":"New money","indexed_100":209.28},{"episode":"AI Rally","episode_day":615,"group":"Old money","indexed_100":116.11},{"episode":"AI Rally","episode_day":620,"group":"New money","indexed_100":359.75},{"episode":"AI Rally","episode_day":625,"group":"New money","indexed_100":228.68},{"episode":"AI Rally","episode_day":625,"group":"Old money","indexed_100":118.99},{"episode":"AI Rally","episode_day":630,"group":"New money","indexed_100":231.06},{"episode":"AI Rally","episode_day":630,"group":"Old money","indexed_100":119.3},{"episode":"AI Rally","episode_day":635,"group":"New money","indexed_100":393.5},{"episode":"AI Rally","episode_day":640,"group":"New money","indexed_100":229.09},{"episode":"AI Rally","episode_day":640,"group":"Old money","indexed_100":120.22},{"episode":"AI Rally","episode_day":645,"group":"New money","indexed_100":230.14},{"episode":"AI Rally","episode_day":645,"group":"Old money","indexed_100":118.83},{"episode":"AI Rally","episode_day":650,"group":"New money","indexed_100":239.28},{"episode":"AI Rally","episode_day":650,"group":"Old money","indexed_100":120.94},{"episode":"AI Rally","episode_day":655,"group":"New money","indexed_100":409.85},{"episode":"AI Rally","episode_day":660,"group":"New money","indexed_100":238.41},{"episode":"AI Rally","episode_day":660,"group":"Old money","indexed_100":121.53},{"episode":"AI Rally","episode_day":665,"group":"New money","indexed_100":247.22},{"episode":"AI Rally","episode_day":665,"group":"Old money","indexed_100":120.71},{"episode":"AI Rally","episode_day":670,"group":"New money","indexed_100":412.12},{"episode":"AI Rally","episode_day":675,"group":"New money","indexed_100":257.74},{"episode":"AI Rally","episode_day":675,"group":"Old money","indexed_100":124.15},{"episode":"AI Rally","episode_day":680,"group":"New money","indexed_100":272.96},{"episode":"AI Rally","episode_day":680,"group":"Old money","indexed_100":123.28},{"episode":"AI Rally","episode_day":685,"group":"New money","indexed_100":269.3},{"episode":"AI Rally","episode_day":685,"group":"Old money","indexed_100":124.38},{"episode":"AI Rally","episode_day":690,"group":"New money","indexed_100":586.2},{"episode":"AI Rally","episode_day":695,"group":"New money","indexed_100":573.46},{"episode":"AI Rally","episode_day":700,"group":"New money","indexed_100":282.29},{"episode":"AI Rally","episode_day":700,"group":"Old money","indexed_100":125.48},{"episode":"AI Rally","episode_day":705,"group":"New money","indexed_100":606.94},{"episode":"AI Rally","episode_day":710,"group":"New money","indexed_100":292.01},{"episode":"AI Rally","episode_day":710,"group":"Old money","indexed_100":122.21},{"episode":"AI Rally","episode_day":715,"group":"New money","indexed_100":284.79},{"episode":"AI Rally","episode_day":715,"group":"Old money","indexed_100":117.51},{"episode":"AI Rally","episode_day":720,"group":"New money","indexed_100":282.06},{"episode":"AI Rally","episode_day":720,"group":"Old money","indexed_100":118.69},{"episode":"AI Rally","episode_day":725,"group":"New money","indexed_100":570.53},{"episode":"COVID Crash","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"COVID Crash","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"COVID Crash","episode_day":5,"group":"New money","indexed_100":94.07},{"episode":"COVID Crash","episode_day":5,"group":"Old money","indexed_100":98.55},{"episode":"COVID Crash","episode_day":10,"group":"New money","indexed_100":89.27},{"episode":"COVID Crash","episode_day":15,"group":"New money","indexed_100":89.77},{"episode":"COVID Crash","episode_day":15,"group":"Old money","indexed_100":93.06},{"episode":"COVID Crash","episode_day":20,"group":"New money","indexed_100":84.14},{"episode":"COVID Crash","episode_day":20,"group":"Old money","indexed_100":86.37},{"episode":"COVID Crash","episode_day":25,"group":"New money","indexed_100":55.98},{"episode":"COVID Crash","episode_day":30,"group":"New money","indexed_100":66.99},{"episode":"COVID Crash","episode_day":30,"group":"Old money","indexed_100":72.19},{"episode":"COVID Crash","episode_day":35,"group":"New money","indexed_100":74.03},{"episode":"COVID Crash","episode_day":35,"group":"Old money","indexed_100":76.96},{"episode":"COVID Crash","episode_day":40,"group":"New money","indexed_100":76.08},{"episode":"COVID Crash","episode_day":40,"group":"Old money","indexed_100":80.19},{"episode":"COVID Crash","episode_day":45,"group":"New money","indexed_100":71.29},{"episode":"COVID Crash","episode_day":50,"group":"New money","indexed_100":80.75},{"episode":"COVID Crash","episode_day":50,"group":"Old money","indexed_100":85.43},{"episode":"COVID Crash","episode_day":55,"group":"New money","indexed_100":83.42},{"episode":"COVID Crash","episode_day":55,"group":"Old money","indexed_100":84.34},{"episode":"COVID Crash","episode_day":60,"group":"New money","indexed_100":74.63},{"episode":"COVID Crash","episode_day":65,"group":"New money","indexed_100":86.0},{"episode":"COVID Crash","episode_day":65,"group":"Old money","indexed_100":84.31},{"episode":"COVID Crash","episode_day":70,"group":"New money","indexed_100":91.76},{"episode":"COVID Crash","episode_day":70,"group":"Old money","indexed_100":87.86},{"episode":"COVID Crash","episode_day":75,"group":"New money","indexed_100":89.24},{"episode":"COVID Crash","episode_day":75,"group":"Old money","indexed_100":84.49},{"episode":"COVID Crash","episode_day":80,"group":"New money","indexed_100":99.59},{"episode":"COVID Crash","episode_day":85,"group":"New money","indexed_100":93.43},{"episode":"COVID Crash","episode_day":85,"group":"Old money","indexed_100":82.87},{"episode":"COVID Crash","episode_day":90,"group":"New money","indexed_100":95.77},{"episode":"COVID Crash","episode_day":90,"group":"Old money","indexed_100":83.88},{"episode":"COVID Crash","episode_day":95,"group":"New money","indexed_100":91.25},{"episode":"COVID Crash","episode_day":100,"group":"New money","indexed_100":97.83},{"episode":"COVID Crash","episode_day":100,"group":"Old money","indexed_100":87.2},{"episode":"COVID Crash","episode_day":105,"group":"New money","indexed_100":100.76},{"episode":"COVID Crash","episode_day":105,"group":"Old money","indexed_100":89.23},{"episode":"COVID Crash","episode_day":110,"group":"New money","indexed_100":102.31},{"episode":"COVID Crash","episode_day":110,"group":"Old money","indexed_100":93.51},{"episode":"COVID Crash","episode_day":115,"group":"New money","indexed_100":98.36},{"episode":"COVID Crash","episode_day":120,"group":"New money","indexed_100":102.64},{"episode":"COVID Crash","episode_day":120,"group":"Old money","indexed_100":88.34},{"episode":"COVID Crash","episode_day":125,"group":"New money","indexed_100":105.64},{"episode":"COVID Crash","episode_day":125,"group":"Old money","indexed_100":87.81},{"episode":"COVID Crash","episode_day":130,"group":"New money","indexed_100":94.92},{"episode":"Dot-Com Crash","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"Dot-Com Crash","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"Dot-Com Crash","episode_day":5,"group":"New money","indexed_100":92.23},{"episode":"Dot-Com Crash","episode_day":5,"group":"Old money","indexed_100":102.1},{"episode":"Dot-Com Crash","episode_day":10,"group":"New money","indexed_100":96.92},{"episode":"Dot-Com Crash","episode_day":10,"group":"Old money","indexed_100":105.73},{"episode":"Dot-Com Crash","episode_day":20,"group":"New money","indexed_100":96.57},{"episode":"Dot-Com Crash","episode_day":20,"group":"Old money","indexed_100":110.65},{"episode":"Dot-Com Crash","episode_day":25,"group":"New money","indexed_100":92.58},{"episode":"Dot-Com Crash","episode_day":25,"group":"Old money","indexed_100":112.05},{"episode":"Dot-Com Crash","episode_day":35,"group":"New money","indexed_100":76.52},{"episode":"Dot-Com Crash","episode_day":35,"group":"Old money","indexed_100":108.12},{"episode":"Dot-Com Crash","episode_day":40,"group":"New money","indexed_100":83.59},{"episode":"Dot-Com Crash","episode_day":40,"group":"Old money","indexed_100":109.37},{"episode":"Dot-Com Crash","episode_day":45,"group":"New money","indexed_100":79.9},{"episode":"Dot-Com Crash","episode_day":45,"group":"Old money","indexed_100":112.58},{"episode":"Dot-Com Crash","episode_day":55,"group":"New money","indexed_100":82.52},{"episode":"Dot-Com Crash","episode_day":55,"group":"Old money","indexed_100":110.24},{"episode":"Dot-Com Crash","episode_day":60,"group":"New money","indexed_100":79.88},{"episode":"Dot-Com Crash","episode_day":60,"group":"Old money","indexed_100":112.21},{"episode":"Dot-Com Crash","episode_day":70,"group":"New money","indexed_100":76.31},{"episode":"Dot-Com Crash","episode_day":70,"group":"Old money","indexed_100":115.26},{"episode":"Dot-Com Crash","episode_day":75,"group":"New money","indexed_100":74.73},{"episode":"Dot-Com Crash","episode_day":75,"group":"Old money","indexed_100":116.32},{"episode":"Dot-Com Crash","episode_day":90,"group":"New money","indexed_100":89.91},{"episode":"Dot-Com Crash","episode_day":90,"group":"Old money","indexed_100":118.51},{"episode":"Dot-Com Crash","episode_day":95,"group":"New money","indexed_100":91.01},{"episode":"Dot-Com Crash","episode_day":95,"group":"Old money","indexed_100":119.82},{"episode":"Dot-Com Crash","episode_day":105,"group":"New money","indexed_100":89.6},{"episode":"Dot-Com Crash","episode_day":105,"group":"Old money","indexed_100":116.5},{"episode":"Dot-Com Crash","episode_day":110,"group":"New money","indexed_100":89.64},{"episode":"Dot-Com Crash","episode_day":110,"group":"Old money","indexed_100":115.47},{"episode":"Dot-Com Crash","episode_day":115,"group":"New money","indexed_100":90.64},{"episode":"Dot-Com Crash","episode_day":115,"group":"Old money","indexed_100":114.6},{"episode":"Dot-Com Crash","episode_day":125,"group":"New money","indexed_100":93.09},{"episode":"Dot-Com Crash","episode_day":125,"group":"Old money","indexed_100":116.7},{"episode":"Dot-Com Crash","episode_day":130,"group":"New money","indexed_100":93.6},{"episode":"Dot-Com Crash","episode_day":130,"group":"Old money","indexed_100":115.52},{"episode":"Dot-Com Crash","episode_day":140,"group":"New money","indexed_100":81.02},{"episode":"Dot-Com Crash","episode_day":140,"group":"Old money","indexed_100":114.62},{"episode":"Dot-Com Crash","episode_day":145,"group":"New money","indexed_100":80.77},{"episode":"Dot-Com Crash","episode_day":145,"group":"Old money","indexed_100":118.24},{"episode":"Dot-Com Crash","episode_day":150,"group":"New money","indexed_100":83.52},{"episode":"Dot-Com Crash","episode_day":150,"group":"Old money","indexed_100":121.96},{"episode":"Dot-Com Crash","episode_day":160,"group":"New money","indexed_100":90.18},{"episode":"Dot-Com Crash","episode_day":160,"group":"Old money","indexed_100":122.98},{"episode":"Dot-Com Crash","episode_day":165,"group":"New money","indexed_100":90.58},{"episode":"Dot-Com Crash","episode_day":165,"group":"Old money","indexed_100":123.09},{"episode":"Dot-Com Crash","episode_day":175,"group":"New money","indexed_100":94.49},{"episode":"Dot-Com Crash","episode_day":175,"group":"Old money","indexed_100":124.98},{"episode":"Dot-Com Crash","episode_day":180,"group":"New money","indexed_100":88.09},{"episode":"Dot-Com Crash","episode_day":180,"group":"Old money","indexed_100":127.41},{"episode":"Dot-Com Crash","episode_day":185,"group":"New money","indexed_100":84.95},{"episode":"Dot-Com Crash","episode_day":185,"group":"Old money","indexed_100":131.84},{"episode":"Dot-Com Crash","episode_day":195,"group":"New money","indexed_100":82.28},{"episode":"Dot-Com Crash","episode_day":195,"group":"Old money","indexed_100":124.84},{"episode":"Dot-Com Crash","episode_day":200,"group":"New money","indexed_100":77.11},{"episode":"Dot-Com Crash","episode_day":200,"group":"Old money","indexed_100":128.13},{"episode":"Dot-Com Crash","episode_day":210,"group":"New money","indexed_100":71.81},{"episode":"Dot-Com Crash","episode_day":210,"group":"Old money","indexed_100":129.29},{"episode":"Dot-Com Crash","episode_day":215,"group":"New money","indexed_100":65.84},{"episode":"Dot-Com Crash","episode_day":215,"group":"Old money","indexed_100":128.43},{"episode":"Dot-Com Crash","episode_day":220,"group":"New money","indexed_100":68.34},{"episode":"Dot-Com Crash","episode_day":220,"group":"Old money","indexed_100":127.35},{"episode":"Dot-Com Crash","episode_day":230,"group":"New money","indexed_100":67.58},{"episode":"Dot-Com Crash","episode_day":230,"group":"Old money","indexed_100":125.41},{"episode":"Dot-Com Crash","episode_day":235,"group":"New money","indexed_100":70.38},{"episode":"Dot-Com Crash","episode_day":235,"group":"Old money","indexed_100":132.62},{"episode":"Dot-Com Crash","episode_day":245,"group":"New money","indexed_100":60.41},{"episode":"Dot-Com Crash","episode_day":245,"group":"Old money","indexed_100":132.15},{"episode":"Dot-Com Crash","episode_day":250,"group":"New money","indexed_100":66.04},{"episode":"Dot-Com Crash","episode_day":250,"group":"Old money","indexed_100":130.98},{"episode":"Dot-Com Crash","episode_day":255,"group":"New money","indexed_100":60.97},{"episode":"Dot-Com Crash","episode_day":255,"group":"Old money","indexed_100":129.0},{"episode":"Dot-Com Crash","episode_day":265,"group":"New money","indexed_100":53.94},{"episode":"Dot-Com Crash","episode_day":265,"group":"Old money","indexed_100":128.1},{"episode":"Dot-Com Crash","episode_day":270,"group":"New money","indexed_100":59.85},{"episode":"Dot-Com Crash","episode_day":270,"group":"Old money","indexed_100":130.08},{"episode":"Dot-Com Crash","episode_day":280,"group":"New money","indexed_100":55.27},{"episode":"Dot-Com Crash","episode_day":280,"group":"Old money","indexed_100":129.49},{"episode":"Dot-Com Crash","episode_day":285,"group":"New money","indexed_100":49.34},{"episode":"Dot-Com Crash","episode_day":285,"group":"Old money","indexed_100":128.51},{"episode":"Dot-Com Crash","episode_day":300,"group":"New money","indexed_100":55.56},{"episode":"Dot-Com Crash","episode_day":300,"group":"Old money","indexed_100":130.81},{"episode":"Dot-Com Crash","episode_day":305,"group":"New money","indexed_100":52.41},{"episode":"Dot-Com Crash","episode_day":305,"group":"Old money","indexed_100":128.74},{"episode":"Dot-Com Crash","episode_day":315,"group":"New money","indexed_100":60.72},{"episode":"Dot-Com Crash","episode_day":315,"group":"Old money","indexed_100":127.16},{"episode":"Dot-Com Crash","episode_day":320,"group":"New money","indexed_100":60.78},{"episode":"Dot-Com Crash","episode_day":320,"group":"Old money","indexed_100":129.65},{"episode":"Dot-Com Crash","episode_day":325,"group":"New money","indexed_100":60.43},{"episode":"Dot-Com Crash","episode_day":325,"group":"Old money","indexed_100":131.04},{"episode":"Dot-Com Crash","episode_day":335,"group":"New money","indexed_100":53.6},{"episode":"Dot-Com Crash","episode_day":335,"group":"Old money","indexed_100":133.04},{"episode":"Dot-Com Crash","episode_day":340,"group":"New money","indexed_100":51.21},{"episode":"Dot-Com Crash","episode_day":340,"group":"Old money","indexed_100":134.02},{"episode":"Dot-Com Crash","episode_day":350,"group":"New money","indexed_100":47.27},{"episode":"Dot-Com Crash","episode_day":350,"group":"Old money","indexed_100":128.19},{"episode":"Dot-Com Crash","episode_day":355,"group":"New money","indexed_100":43.58},{"episode":"Dot-Com Crash","episode_day":355,"group":"Old money","indexed_100":128.27},{"episode":"Dot-Com Crash","episode_day":360,"group":"New money","indexed_100":45.56},{"episode":"Dot-Com Crash","episode_day":360,"group":"Old money","indexed_100":129.25},{"episode":"Dot-Com Crash","episode_day":370,"group":"New money","indexed_100":41.86},{"episode":"Dot-Com Crash","episode_day":370,"group":"Old money","indexed_100":124.97},{"episode":"Dot-Com Crash","episode_day":375,"group":"New money","indexed_100":39.95},{"episode":"Dot-Com Crash","episode_day":375,"group":"Old money","indexed_100":123.43},{"episode":"Dot-Com Crash","episode_day":385,"group":"New money","indexed_100":39.25},{"episode":"Dot-Com Crash","episode_day":385,"group":"Old money","indexed_100":125.11},{"episode":"Dot-Com Crash","episode_day":390,"group":"New money","indexed_100":34.19},{"episode":"Dot-Com Crash","episode_day":390,"group":"Old money","indexed_100":121.74},{"episode":"Dot-Com Crash","episode_day":395,"group":"New money","indexed_100":36.14},{"episode":"Dot-Com Crash","episode_day":395,"group":"Old money","indexed_100":124.02},{"episode":"Dot-Com Crash","episode_day":405,"group":"New money","indexed_100":48.89},{"episode":"Dot-Com Crash","episode_day":405,"group":"Old money","indexed_100":129.74},{"episode":"Dot-Com Crash","episode_day":410,"group":"New money","indexed_100":44.54},{"episode":"Dot-Com Crash","episode_day":410,"group":"Old money","indexed_100":129.43},{"episode":"Dot-Com Crash","episode_day":420,"group":"New money","indexed_100":47.59},{"episode":"Dot-Com Crash","episode_day":420,"group":"Old money","indexed_100":132.3},{"episode":"Dot-Com Crash","episode_day":425,"group":"New money","indexed_100":46.45},{"episode":"Dot-Com Crash","episode_day":425,"group":"Old money","indexed_100":131.9},{"episode":"Dot-Com Crash","episode_day":430,"group":"New money","indexed_100":44.62},{"episode":"Dot-Com Crash","episode_day":430,"group":"Old money","indexed_100":132.45},{"episode":"Dot-Com Crash","episode_day":440,"group":"New money","indexed_100":48.56},{"episode":"Dot-Com Crash","episode_day":440,"group":"Old money","indexed_100":135.62},{"episode":"Dot-Com Crash","episode_day":445,"group":"New money","indexed_100":45.62},{"episode":"Dot-Com Crash","episode_day":445,"group":"Old money","indexed_100":133.85},{"episode":"Dot-Com Crash","episode_day":455,"group":"New money","indexed_100":47.42},{"episode":"Dot-Com Crash","episode_day":455,"group":"Old money","indexed_100":131.68},{"episode":"Dot-Com Crash","episode_day":460,"group":"New money","indexed_100":44.76},{"episode":"Dot-Com Crash","episode_day":460,"group":"Old money","indexed_100":131.09},{"episode":"Dot-Com Crash","episode_day":465,"group":"New money","indexed_100":41.85},{"episode":"Dot-Com Crash","episode_day":465,"group":"Old money","indexed_100":128.68},{"episode":"Dot-Com Crash","episode_day":475,"group":"New money","indexed_100":44.07},{"episode":"Dot-Com Crash","episode_day":475,"group":"Old money","indexed_100":127.67},{"episode":"Dot-Com Crash","episode_day":480,"group":"New money","indexed_100":45.16},{"episode":"Dot-Com Crash","episode_day":480,"group":"Old money","indexed_100":128.93},{"episode":"Dot-Com Crash","episode_day":490,"group":"New money","indexed_100":43.23},{"episode":"Dot-Com Crash","episode_day":490,"group":"Old money","indexed_100":127.67},{"episode":"Dot-Com Crash","episode_day":495,"group":"New money","indexed_100":41.18},{"episode":"Dot-Com Crash","episode_day":495,"group":"Old money","indexed_100":126.46},{"episode":"Dot-Com Crash","episode_day":500,"group":"New money","indexed_100":40.73},{"episode":"Dot-Com Crash","episode_day":500,"group":"Old money","indexed_100":124.56},{"episode":"Dot-Com Crash","episode_day":510,"group":"New money","indexed_100":45.18},{"episode":"Dot-Com Crash","episode_day":510,"group":"Old money","indexed_100":127.42},{"episode":"Dot-Com Crash","episode_day":515,"group":"New money","indexed_100":43.19},{"episode":"Dot-Com Crash","episode_day":515,"group":"Old money","indexed_100":126.21},{"episode":"Dot-Com Crash","episode_day":525,"group":"New money","indexed_100":39.17},{"episode":"Dot-Com Crash","episode_day":525,"group":"Old money","indexed_100":123.38},{"episode":"Dot-Com Crash","episode_day":530,"group":"New money","indexed_100":39.11},{"episode":"Dot-Com Crash","episode_day":530,"group":"Old money","indexed_100":123.49},{"episode":"Dot-Com Crash","episode_day":535,"group":"New money","indexed_100":41.19},{"episode":"Dot-Com Crash","episode_day":535,"group":"Old money","indexed_100":124.03},{"episode":"Dot-Com Crash","episode_day":545,"group":"New money","indexed_100":35.22},{"episode":"Dot-Com Crash","episode_day":545,"group":"Old money","indexed_100":119.26},{"episode":"Dot-Com Crash","episode_day":560,"group":"New money","indexed_100":28.34},{"episode":"Dot-Com Crash","episode_day":560,"group":"Old money","indexed_100":108.65},{"episode":"Dot-Com Crash","episode_day":565,"group":"New money","indexed_100":28.84},{"episode":"Dot-Com Crash","episode_day":565,"group":"Old money","indexed_100":110.02},{"episode":"Dot-Com Crash","episode_day":570,"group":"New money","indexed_100":28.75},{"episode":"Dot-Com Crash","episode_day":570,"group":"Old money","indexed_100":114.26},{"episode":"Dot-Com Crash","episode_day":580,"group":"New money","indexed_100":35.08},{"episode":"Dot-Com Crash","episode_day":580,"group":"Old money","indexed_100":118.69},{"episode":"Dot-Com Crash","episode_day":585,"group":"New money","indexed_100":34.93},{"episode":"Dot-Com Crash","episode_day":585,"group":"Old money","indexed_100":118.38},{"episode":"Dot-Com Crash","episode_day":595,"group":"New money","indexed_100":36.1},{"episode":"Dot-Com Crash","episode_day":595,"group":"Old money","indexed_100":117.21},{"episode":"Dot-Com Crash","episode_day":600,"group":"New money","indexed_100":33.84},{"episode":"Dot-Com Crash","episode_day":600,"group":"Old money","indexed_100":113.04},{"episode":"Dot-Com Crash","episode_day":605,"group":"New money","indexed_100":36.87},{"episode":"Dot-Com Crash","episode_day":605,"group":"Old money","indexed_100":115.1},{"episode":"Dot-Com Crash","episode_day":615,"group":"New money","indexed_100":39.73},{"episode":"Dot-Com Crash","episode_day":615,"group":"Old money","indexed_100":114.15},{"episode":"Dot-Com Crash","episode_day":620,"group":"New money","indexed_100":38.4},{"episode":"Dot-Com Crash","episode_day":620,"group":"Old money","indexed_100":116.62},{"episode":"Dot-Com Crash","episode_day":630,"group":"New money","indexed_100":39.63},{"episode":"Dot-Com Crash","episode_day":630,"group":"Old money","indexed_100":113.4},{"episode":"Dot-Com Crash","episode_day":635,"group":"New money","indexed_100":43.02},{"episode":"Dot-Com Crash","episode_day":635,"group":"Old money","indexed_100":116.3},{"episode":"Dot-Com Crash","episode_day":640,"group":"New money","indexed_100":41.04},{"episode":"Dot-Com Crash","episode_day":640,"group":"Old money","indexed_100":114.07},{"episode":"Dot-Com Crash","episode_day":650,"group":"New money","indexed_100":38.41},{"episode":"Dot-Com Crash","episode_day":650,"group":"Old money","indexed_100":115.8},{"episode":"Dot-Com Crash","episode_day":665,"group":"New money","indexed_100":42.47},{"episode":"Dot-Com Crash","episode_day":665,"group":"Old money","indexed_100":118.41},{"episode":"Dot-Com Crash","episode_day":670,"group":"New money","indexed_100":41.94},{"episode":"Dot-Com Crash","episode_day":670,"group":"Old money","indexed_100":116.84},{"episode":"Dot-Com Crash","episode_day":675,"group":"New money","indexed_100":40.62},{"episode":"Dot-Com Crash","episode_day":675,"group":"Old money","indexed_100":115.11},{"episode":"Dot-Com Crash","episode_day":685,"group":"New money","indexed_100":39.06},{"episode":"Dot-Com Crash","episode_day":685,"group":"Old money","indexed_100":115.56},{"episode":"Dot-Com Crash","episode_day":690,"group":"New money","indexed_100":38.52},{"episode":"Dot-Com Crash","episode_day":690,"group":"Old money","indexed_100":111.68},{"episode":"Dot-Com Crash","episode_day":700,"group":"New money","indexed_100":37.44},{"episode":"Dot-Com Crash","episode_day":700,"group":"Old money","indexed_100":111.4},{"episode":"Dot-Com Crash","episode_day":705,"group":"New money","indexed_100":38.89},{"episode":"Dot-Com Crash","episode_day":705,"group":"Old money","indexed_100":113.07},{"episode":"Dot-Com Crash","episode_day":720,"group":"New money","indexed_100":34.99},{"episode":"Dot-Com Crash","episode_day":720,"group":"Old money","indexed_100":114.41},{"episode":"Dot-Com Crash","episode_day":725,"group":"New money","indexed_100":39.63},{"episode":"Dot-Com Crash","episode_day":725,"group":"Old money","indexed_100":119.07},{"episode":"Dot-Com Crash","episode_day":735,"group":"New money","indexed_100":38.95},{"episode":"Dot-Com Crash","episode_day":735,"group":"Old money","indexed_100":122.37},{"episode":"Dot-Com Crash","episode_day":740,"group":"New money","indexed_100":38.03},{"episode":"Dot-Com Crash","episode_day":740,"group":"Old money","indexed_100":121.96},{"episode":"Dot-Com Crash","episode_day":745,"group":"New money","indexed_100":37.43},{"episode":"Dot-Com Crash","episode_day":745,"group":"Old money","indexed_100":120.27},{"episode":"Dot-Com Crash","episode_day":755,"group":"New money","indexed_100":37.36},{"episode":"Dot-Com Crash","episode_day":755,"group":"Old money","indexed_100":121.18},{"episode":"Dot-Com Crash","episode_day":760,"group":"New money","indexed_100":35.78},{"episode":"Dot-Com Crash","episode_day":760,"group":"Old money","indexed_100":120.14},{"episode":"Dot-Com Crash","episode_day":770,"group":"New money","indexed_100":36.83},{"episode":"Dot-Com Crash","episode_day":770,"group":"Old money","indexed_100":121.05},{"episode":"Dot-Com Crash","episode_day":775,"group":"New money","indexed_100":34.64},{"episode":"Dot-Com Crash","episode_day":775,"group":"Old money","indexed_100":118.53},{"episode":"Dot-Com Crash","episode_day":780,"group":"New money","indexed_100":33.29},{"episode":"Dot-Com Crash","episode_day":780,"group":"Old money","indexed_100":115.77},{"episode":"Dot-Com Crash","episode_day":790,"group":"New money","indexed_100":33.07},{"episode":"Dot-Com Crash","episode_day":790,"group":"Old money","indexed_100":116.57},{"episode":"Dot-Com Crash","episode_day":795,"group":"New money","indexed_100":35.1},{"episode":"Dot-Com Crash","episode_day":795,"group":"Old money","indexed_100":118.37},{"episode":"Dot-Com Crash","episode_day":805,"group":"New money","indexed_100":33.27},{"episode":"Dot-Com Crash","episode_day":805,"group":"Old money","indexed_100":118.74},{"episode":"Dot-Com Crash","episode_day":810,"group":"New money","indexed_100":32.19},{"episode":"Dot-Com Crash","episode_day":810,"group":"Old money","indexed_100":117.28},{"episode":"Dot-Com Crash","episode_day":815,"group":"New money","indexed_100":30.74},{"episode":"Dot-Com Crash","episode_day":815,"group":"Old money","indexed_100":113.49},{"episode":"Dot-Com Crash","episode_day":825,"group":"New money","indexed_100":28.76},{"episode":"Dot-Com Crash","episode_day":825,"group":"Old money","indexed_100":110.23},{"episode":"Dot-Com Crash","episode_day":830,"group":"New money","indexed_100":29.72},{"episode":"Dot-Com Crash","episode_day":830,"group":"Old money","indexed_100":113.87},{"episode":"Dot-Com Crash","episode_day":840,"group":"New money","indexed_100":26.68},{"episode":"Dot-Com Crash","episode_day":840,"group":"Old money","indexed_100":110.63},{"episode":"Dot-Com Crash","episode_day":845,"group":"New money","indexed_100":25.47},{"episode":"Dot-Com Crash","episode_day":845,"group":"Old money","indexed_100":106.31},{"episode":"Dot-Com Crash","episode_day":850,"group":"New money","indexed_100":26.23},{"episode":"Dot-Com Crash","episode_day":850,"group":"Old money","indexed_100":107.98},{"episode":"Dot-Com Crash","episode_day":860,"group":"New money","indexed_100":25.76},{"episode":"Dot-Com Crash","episode_day":860,"group":"Old money","indexed_100":94.76},{"episode":"Dot-Com Crash","episode_day":865,"group":"New money","indexed_100":23.16},{"episode":"Dot-Com Crash","episode_day":865,"group":"Old money","indexed_100":82.63},{"episode":"Dot-Com Crash","episode_day":875,"group":"New money","indexed_100":22.11},{"episode":"Dot-Com Crash","episode_day":875,"group":"Old money","indexed_100":95.08},{"episode":"Dot-Com Crash","episode_day":880,"group":"New money","indexed_100":22.5},{"episode":"Dot-Com Crash","episode_day":880,"group":"Old money","indexed_100":96.06},{"episode":"Dot-Com Crash","episode_day":885,"group":"New money","indexed_100":22.99},{"episode":"Dot-Com Crash","episode_day":885,"group":"Old money","indexed_100":100.0},{"episode":"Dot-Com Crash","episode_day":895,"group":"New money","indexed_100":26.04},{"episode":"Dot-Com Crash","episode_day":895,"group":"Old money","indexed_100":103.51},{"episode":"Dot-Com Crash","episode_day":900,"group":"New money","indexed_100":23.91},{"episode":"Dot-Com Crash","episode_day":900,"group":"Old money","indexed_100":102.83},{"episode":"Dot-Com Crash","episode_day":910,"group":"New money","indexed_100":22.31},{"episode":"Dot-Com Crash","episode_day":910,"group":"Old money","indexed_100":99.44},{"episode":"Dot-Com Crash","episode_day":915,"group":"New money","indexed_100":23.12},{"episode":"Dot-Com Crash","episode_day":915,"group":"Old money","indexed_100":99.3},{"episode":"Dot-Com Crash","episode_day":920,"group":"New money","indexed_100":21.67},{"episode":"Dot-Com Crash","episode_day":920,"group":"Old money","indexed_100":98.49},{"episode":"Dot-Com Crash","episode_day":930,"group":"New money","indexed_100":20.17},{"episode":"Dot-Com Crash","episode_day":930,"group":"Old money","indexed_100":96.23},{"episode":"Dot-Com Crash","episode_day":935,"group":"New money","indexed_100":20.21},{"episode":"Dot-Com Crash","episode_day":935,"group":"Old money","indexed_100":96.61},{"episode":"Global Financial Crisis","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"Global Financial Crisis","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"Global Financial Crisis","episode_day":10,"group":"New money","indexed_100":96.45},{"episode":"Global Financial Crisis","episode_day":10,"group":"Old money","indexed_100":96.66},{"episode":"Global Financial Crisis","episode_day":15,"group":"New money","indexed_100":96.48},{"episode":"Global Financial Crisis","episode_day":15,"group":"Old money","indexed_100":97.19},{"episode":"Global Financial Crisis","episode_day":20,"group":"New money","indexed_100":97.28},{"episode":"Global Financial Crisis","episode_day":20,"group":"Old money","indexed_100":99.94},{"episode":"Global Financial Crisis","episode_day":30,"group":"New money","indexed_100":93.0},{"episode":"Global Financial Crisis","episode_day":30,"group":"Old money","indexed_100":97.78},{"episode":"Global Financial Crisis","episode_day":35,"group":"New money","indexed_100":92.39},{"episode":"Global Financial Crisis","episode_day":35,"group":"Old money","indexed_100":97.99},{"episode":"Global Financial Crisis","episode_day":45,"group":"New money","indexed_100":89.83},{"episode":"Global Financial Crisis","episode_day":45,"group":"Old money","indexed_100":97.26},{"episode":"Global Financial Crisis","episode_day":50,"group":"New money","indexed_100":92.5},{"episode":"Global Financial Crisis","episode_day":50,"group":"Old money","indexed_100":97.89},{"episode":"Global Financial Crisis","episode_day":55,"group":"New money","indexed_100":91.32},{"episode":"Global Financial Crisis","episode_day":55,"group":"Old money","indexed_100":98.25},{"episode":"Global Financial Crisis","episode_day":65,"group":"New money","indexed_100":93.46},{"episode":"Global Financial Crisis","episode_day":65,"group":"Old money","indexed_100":98.06},{"episode":"Global Financial Crisis","episode_day":70,"group":"New money","indexed_100":90.87},{"episode":"Global Financial Crisis","episode_day":70,"group":"Old money","indexed_100":97.1},{"episode":"Global Financial Crisis","episode_day":80,"group":"New money","indexed_100":93.28},{"episode":"Global Financial Crisis","episode_day":80,"group":"Old money","indexed_100":99.18},{"episode":"Global Financial Crisis","episode_day":85,"group":"New money","indexed_100":90.4},{"episode":"Global Financial Crisis","episode_day":85,"group":"Old money","indexed_100":98.92},{"episode":"Global Financial Crisis","episode_day":90,"group":"New money","indexed_100":85.85},{"episode":"Global Financial Crisis","episode_day":90,"group":"Old money","indexed_100":97.91},{"episode":"Global Financial Crisis","episode_day":100,"group":"New money","indexed_100":80.79},{"episode":"Global Financial Crisis","episode_day":100,"group":"Old money","indexed_100":94.01},{"episode":"Global Financial Crisis","episode_day":105,"group":"New money","indexed_100":78.9},{"episode":"Global Financial Crisis","episode_day":105,"group":"Old money","indexed_100":93.61},{"episode":"Global Financial Crisis","episode_day":115,"group":"New money","indexed_100":83.43},{"episode":"Global Financial Crisis","episode_day":115,"group":"Old money","indexed_100":99.52},{"episode":"Global Financial Crisis","episode_day":120,"group":"New money","indexed_100":78.05},{"episode":"Global Financial Crisis","episode_day":120,"group":"Old money","indexed_100":96.01},{"episode":"Global Financial Crisis","episode_day":125,"group":"New money","indexed_100":79.97},{"episode":"Global Financial Crisis","episode_day":125,"group":"Old money","indexed_100":96.78},{"episode":"Global Financial Crisis","episode_day":135,"group":"New money","indexed_100":79.51},{"episode":"Global Financial Crisis","episode_day":135,"group":"Old money","indexed_100":97.04},{"episode":"Global Financial Crisis","episode_day":140,"group":"New money","indexed_100":80.92},{"episode":"Global Financial Crisis","episode_day":140,"group":"Old money","indexed_100":99.01},{"episode":"Global Financial Crisis","episode_day":150,"group":"New money","indexed_100":77.85},{"episode":"Global Financial Crisis","episode_day":150,"group":"Old money","indexed_100":94.92},{"episode":"Global Financial Crisis","episode_day":155,"group":"New money","indexed_100":79.03},{"episode":"Global Financial Crisis","episode_day":155,"group":"Old money","indexed_100":96.94},{"episode":"Global Financial Crisis","episode_day":160,"group":"New money","indexed_100":77.36},{"episode":"Global Financial Crisis","episode_day":160,"group":"Old money","indexed_100":96.23},{"episode":"Global Financial Crisis","episode_day":170,"group":"New money","indexed_100":79.81},{"episode":"Global Financial Crisis","episode_day":170,"group":"Old money","indexed_100":96.69},{"episode":"Global Financial Crisis","episode_day":175,"group":"New money","indexed_100":82.29},{"episode":"Global Financial Crisis","episode_day":175,"group":"Old money","indexed_100":96.97},{"episode":"Global Financial Crisis","episode_day":185,"group":"New money","indexed_100":80.75},{"episode":"Global Financial Crisis","episode_day":185,"group":"Old money","indexed_100":96.97},{"episode":"Global Financial Crisis","episode_day":190,"group":"New money","indexed_100":82.87},{"episode":"Global Financial Crisis","episode_day":190,"group":"Old money","indexed_100":99.21},{"episode":"Global Financial Crisis","episode_day":195,"group":"New money","indexed_100":85.36},{"episode":"Global Financial Crisis","episode_day":195,"group":"Old money","indexed_100":98.93},{"episode":"Global Financial Crisis","episode_day":205,"group":"New money","indexed_100":88.0},{"episode":"Global Financial Crisis","episode_day":205,"group":"Old money","indexed_100":97.86},{"episode":"Global Financial Crisis","episode_day":210,"group":"New money","indexed_100":88.51},{"episode":"Global Financial Crisis","episode_day":210,"group":"Old money","indexed_100":98.94},{"episode":"Global Financial Crisis","episode_day":220,"group":"New money","indexed_100":90.95},{"episode":"Global Financial Crisis","episode_day":220,"group":"Old money","indexed_100":99.66},{"episode":"Global Financial Crisis","episode_day":225,"group":"New money","indexed_100":87.81},{"episode":"Global Financial Crisis","episode_day":225,"group":"Old money","indexed_100":99.57},{"episode":"Global Financial Crisis","episode_day":240,"group":"New money","indexed_100":91.0},{"episode":"Global Financial Crisis","episode_day":240,"group":"Old money","indexed_100":97.43},{"episode":"Global Financial Crisis","episode_day":245,"group":"New money","indexed_100":87.59},{"episode":"Global Financial Crisis","episode_day":245,"group":"Old money","indexed_100":95.5},{"episode":"Global Financial Crisis","episode_day":255,"group":"New money","indexed_100":85.57},{"episode":"Global Financial Crisis","episode_day":255,"group":"Old money","indexed_100":94.89},{"episode":"Global Financial Crisis","episode_day":260,"group":"New money","indexed_100":85.76},{"episode":"Global Financial Crisis","episode_day":260,"group":"Old money","indexed_100":94.93},{"episode":"Global Financial Crisis","episode_day":265,"group":"New money","indexed_100":81.88},{"episode":"Global Financial Crisis","episode_day":265,"group":"Old money","indexed_100":94.95},{"episode":"Global Financial Crisis","episode_day":275,"group":"New money","indexed_100":80.15},{"episode":"Global Financial Crisis","episode_day":275,"group":"Old money","indexed_100":93.47},{"episode":"Global Financial Crisis","episode_day":280,"group":"New money","indexed_100":79.06},{"episode":"Global Financial Crisis","episode_day":280,"group":"Old money","indexed_100":90.85},{"episode":"Global Financial Crisis","episode_day":290,"group":"New money","indexed_100":79.42},{"episode":"Global Financial Crisis","episode_day":290,"group":"Old money","indexed_100":91.08},{"episode":"Global Financial Crisis","episode_day":295,"group":"New money","indexed_100":80.09},{"episode":"Global Financial Crisis","episode_day":295,"group":"Old money","indexed_100":93.23},{"episode":"Global Financial Crisis","episode_day":300,"group":"New money","indexed_100":79.2},{"episode":"Global Financial Crisis","episode_day":300,"group":"Old money","indexed_100":90.64},{"episode":"Global Financial Crisis","episode_day":310,"group":"New money","indexed_100":85.39},{"episode":"Global Financial Crisis","episode_day":310,"group":"Old money","indexed_100":89.83},{"episode":"Global Financial Crisis","episode_day":315,"group":"New money","indexed_100":82.91},{"episode":"Global Financial Crisis","episode_day":315,"group":"Old money","indexed_100":89.4},{"episode":"Global Financial Crisis","episode_day":325,"group":"New money","indexed_100":81.28},{"episode":"Global Financial Crisis","episode_day":325,"group":"Old money","indexed_100":91.46},{"episode":"Global Financial Crisis","episode_day":330,"group":"New money","indexed_100":78.86},{"episode":"Global Financial Crisis","episode_day":330,"group":"Old money","indexed_100":90.74},{"episode":"Global Financial Crisis","episode_day":335,"group":"New money","indexed_100":76.69},{"episode":"Global Financial Crisis","episode_day":335,"group":"Old money","indexed_100":91.28},{"episode":"Global Financial Crisis","episode_day":345,"group":"New money","indexed_100":73.73},{"episode":"Global Financial Crisis","episode_day":345,"group":"Old money","indexed_100":92.06},{"episode":"Global Financial Crisis","episode_day":350,"group":"New money","indexed_100":71.76},{"episode":"Global Financial Crisis","episode_day":350,"group":"Old money","indexed_100":91.76},{"episode":"Global Financial Crisis","episode_day":360,"group":"New money","indexed_100":65.28},{"episode":"Global Financial Crisis","episode_day":360,"group":"Old money","indexed_100":86.75},{"episode":"Global Financial Crisis","episode_day":365,"group":"New money","indexed_100":58.79},{"episode":"Global Financial Crisis","episode_day":365,"group":"Old money","indexed_100":82.64},{"episode":"Global Financial Crisis","episode_day":370,"group":"New money","indexed_100":63.0},{"episode":"Global Financial Crisis","episode_day":370,"group":"Old money","indexed_100":80.88},{"episode":"Global Financial Crisis","episode_day":380,"group":"New money","indexed_100":54.31},{"episode":"Global Financial Crisis","episode_day":380,"group":"Old money","indexed_100":75.45},{"episode":"Global Financial Crisis","episode_day":385,"group":"New money","indexed_100":58.01},{"episode":"Global Financial Crisis","episode_day":385,"group":"Old money","indexed_100":77.01},{"episode":"Global Financial Crisis","episode_day":395,"group":"New money","indexed_100":55.23},{"episode":"Global Financial Crisis","episode_day":395,"group":"Old money","indexed_100":76.82},{"episode":"Global Financial Crisis","episode_day":400,"group":"New money","indexed_100":50.7},{"episode":"Global Financial Crisis","episode_day":400,"group":"Old money","indexed_100":72.87},{"episode":"Global Financial Crisis","episode_day":405,"group":"New money","indexed_100":49.87},{"episode":"Global Financial Crisis","episode_day":405,"group":"Old money","indexed_100":74.31},{"episode":"Global Financial Crisis","episode_day":420,"group":"New money","indexed_100":49.03},{"episode":"Global Financial Crisis","episode_day":420,"group":"Old money","indexed_100":77.45},{"episode":"Global Financial Crisis","episode_day":430,"group":"New money","indexed_100":53.12},{"episode":"Global Financial Crisis","episode_day":430,"group":"Old money","indexed_100":79.69},{"episode":"Global Financial Crisis","episode_day":435,"group":"New money","indexed_100":54.04},{"episode":"Global Financial Crisis","episode_day":435,"group":"Old money","indexed_100":82.98},{"episode":"Global Financial Crisis","episode_day":440,"group":"New money","indexed_100":51.72},{"episode":"Global Financial Crisis","episode_day":440,"group":"Old money","indexed_100":81.31},{"episode":"Global Financial Crisis","episode_day":455,"group":"New money","indexed_100":56.3},{"episode":"Global Financial Crisis","episode_day":455,"group":"Old money","indexed_100":82.97},{"episode":"Global Financial Crisis","episode_day":465,"group":"New money","indexed_100":52.07},{"episode":"Global Financial Crisis","episode_day":465,"group":"Old money","indexed_100":77.79},{"episode":"Global Financial Crisis","episode_day":470,"group":"New money","indexed_100":51.31},{"episode":"Global Financial Crisis","episode_day":470,"group":"Old money","indexed_100":76.86},{"episode":"Global Financial Crisis","episode_day":475,"group":"New money","indexed_100":51.63},{"episode":"Global Financial Crisis","episode_day":475,"group":"Old money","indexed_100":77.0},{"episode":"Global Financial Crisis","episode_day":485,"group":"New money","indexed_100":54.2},{"episode":"Global Financial Crisis","episode_day":485,"group":"Old money","indexed_100":76.96},{"episode":"Global Financial Crisis","episode_day":490,"group":"New money","indexed_100":53.59},{"episode":"Global Financial Crisis","episode_day":490,"group":"Old money","indexed_100":76.61},{"episode":"Global Financial Crisis","episode_day":500,"group":"New money","indexed_100":50.1},{"episode":"Global Financial Crisis","episode_day":500,"group":"Old money","indexed_100":74.05},{"episode":"Global Financial Crisis","episode_day":505,"group":"New money","indexed_100":50.31},{"episode":"Global Financial Crisis","episode_day":505,"group":"Old money","indexed_100":73.42},{"episode":"Global Financial Crisis","episode_day":510,"group":"New money","indexed_100":47.28},{"episode":"Global Financial Crisis","episode_day":510,"group":"Old money","indexed_100":70.58},{"episode":"Regional Banking Crisis","episode_day":0,"group":"New money","indexed_100":100.0},{"episode":"Regional Banking Crisis","episode_day":0,"group":"Old money","indexed_100":100.0},{"episode":"Regional Banking Crisis","episode_day":5,"group":"New money","indexed_100":91.99},{"episode":"Regional Banking Crisis","episode_day":10,"group":"New money","indexed_100":103.73},{"episode":"Regional Banking Crisis","episode_day":10,"group":"Old money","indexed_100":94.22},{"episode":"Regional Banking Crisis","episode_day":15,"group":"New money","indexed_100":107.7},{"episode":"Regional Banking Crisis","episode_day":15,"group":"Old money","indexed_100":94.67},{"episode":"Regional Banking Crisis","episode_day":20,"group":"New money","indexed_100":124.81},{"episode":"Regional Banking Crisis","episode_day":25,"group":"New money","indexed_100":110.36},{"episode":"Regional Banking Crisis","episode_day":25,"group":"Old money","indexed_100":95.63},{"episode":"Regional Banking Crisis","episode_day":30,"group":"New money","indexed_100":107.34},{"episode":"Regional Banking Crisis","episode_day":30,"group":"Old money","indexed_100":96.86},{"episode":"Regional Banking Crisis","episode_day":35,"group":"New money","indexed_100":109.43},{"episode":"Regional Banking Crisis","episode_day":35,"group":"Old money","indexed_100":96.65},{"episode":"Regional Banking Crisis","episode_day":40,"group":"New money","indexed_100":135.17},{"episode":"Regional Banking Crisis","episode_day":45,"group":"New money","indexed_100":106.95},{"episode":"Regional Banking Crisis","episode_day":45,"group":"Old money","indexed_100":97.12},{"episode":"Regional Banking Crisis","episode_day":50,"group":"New money","indexed_100":104.26},{"episode":"Regional Banking Crisis","episode_day":50,"group":"Old money","indexed_100":96.3},{"episode":"Regional Banking Crisis","episode_day":55,"group":"New money","indexed_100":130.49},{"episode":"Regional Banking Crisis","episode_day":60,"group":"New money","indexed_100":108.79},{"episode":"Regional Banking Crisis","episode_day":60,"group":"Old money","indexed_100":94.26},{"episode":"Regional Banking Crisis","episode_day":65,"group":"New money","indexed_100":107.98},{"episode":"Regional Banking Crisis","episode_day":65,"group":"Old money","indexed_100":93.68},{"episode":"Regional Banking Crisis","episode_day":70,"group":"New money","indexed_100":107.98},{"episode":"Regional Banking Crisis","episode_day":70,"group":"Old money","indexed_100":93.17},{"episode":"Regional Banking Crisis","episode_day":75,"group":"New money","indexed_100":120.95},{"episode":"Regional Banking Crisis","episode_day":80,"group":"New money","indexed_100":111.61},{"episode":"Regional Banking Crisis","episode_day":80,"group":"Old money","indexed_100":91.63},{"episode":"Regional Banking Crisis","episode_day":85,"group":"New money","indexed_100":116.14},{"episode":"Regional Banking Crisis","episode_day":85,"group":"Old money","indexed_100":92.06}],"summary":[{"episode":"2022 Inflation Shock","ticker":"ARKK","asset_name":"Innovation Stocks","group":"New money","start_value":100.0,"end_value":32.21,"min_value":30.56,"max_drawdown":-69.44,"volatility":0.04,"total_return_pct":-67.79,"volatility_pct":4.27},{"episode":"2022 Inflation Shock","ticker":"BTC-USD","asset_name":"Bitcoin","group":"New money","start_value":100.0,"end_value":35.74,"min_value":33.98,"max_drawdown":-66.74,"volatility":0.03,"total_return_pct":-64.26,"volatility_pct":3.34},{"episode":"2022 Inflation Shock","ticker":"GLD","asset_name":"Gold","group":"Old money","start_value":100.0,"end_value":100.78,"min_value":89.84,"max_drawdown":-21.03,"volatility":0.01,"total_return_pct":0.78,"volatility_pct":0.96},{"episode":"2022 Inflation Shock","ticker":"KRE","asset_name":"Regional Banks","group":"Old money","start_value":100.0,"end_value":83.37,"min_value":79.15,"max_drawdown":-27.49,"volatility":0.02,"total_return_pct":-16.63,"volatility_pct":1.76},{"episode":"2022 Inflation Shock","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":66.78,"min_value":65.17,"max_drawdown":-34.83,"volatility":0.02,"total_return_pct":-33.22,"volatility_pct":2.03},{"episode":"2022 Inflation Shock","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":65.03,"min_value":54.86,"max_drawdown":-45.14,"volatility":0.03,"total_return_pct":-34.97,"volatility_pct":2.68},{"episode":"2022 Inflation Shock","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":81.35,"min_value":75.5,"max_drawdown":-24.5,"volatility":0.02,"total_return_pct":-18.65,"volatility_pct":1.53},{"episode":"2022 Inflation Shock","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":70.62,"min_value":65.07,"max_drawdown":-34.93,"volatility":0.01,"total_return_pct":-29.38,"volatility_pct":1.27},{"episode":"2022 Inflation Shock","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":159.39,"min_value":100.0,"max_drawdown":-26.04,"volatility":0.02,"total_return_pct":59.39,"volatility_pct":2.22},{"episode":"2022 Inflation Shock","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":88.33,"min_value":77.74,"max_drawdown":-25.81,"volatility":0.02,"total_return_pct":-11.67,"volatility_pct":1.54},{"episode":"2022 Inflation Shock","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":71.59,"min_value":66.87,"max_drawdown":-33.13,"volatility":0.02,"total_return_pct":-28.41,"volatility_pct":2.07},{"episode":"2022 Inflation Shock","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":102.46,"min_value":88.68,"max_drawdown":-20.72,"volatility":0.01,"total_return_pct":2.46,"volatility_pct":1.35},{"episode":"AI Rally","ticker":"ARKK","asset_name":"Innovation Stocks","group":"New money","start_value":100.0,"end_value":187.93,"min_value":100.0,"max_drawdown":-32.11,"volatility":0.02,"total_return_pct":87.93,"volatility_pct":2.4},{"episode":"AI Rally","ticker":"BTC-USD","asset_name":"Bitcoin","group":"New money","start_value":100.0,"end_value":560.13,"min_value":100.0,"max_drawdown":-26.18,"volatility":0.03,"total_return_pct":460.13,"volatility_pct":2.56},{"episode":"AI Rally","ticker":"GLD","asset_name":"Gold","group":"Old money","start_value":100.0,"end_value":141.55,"min_value":98.42,"max_drawdown":-11.35,"volatility":0.01,"total_return_pct":41.55,"volatility_pct":0.9},{"episode":"AI Rally","ticker":"KRE","asset_name":"Regional Banks","group":"Old money","start_value":100.0,"end_value":110.33,"min_value":62.38,"max_drawdown":-43.84,"volatility":0.02,"total_return_pct":10.33,"volatility_pct":2.13},{"episode":"AI Rally","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":195.79,"min_value":98.9,"max_drawdown":-13.56,"volatility":0.01,"total_return_pct":95.79,"volatility_pct":1.13},{"episode":"AI Rally","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":243.03,"min_value":100.0,"max_drawdown":-24.82,"volatility":0.02,"total_return_pct":143.03,"volatility_pct":1.98},{"episode":"AI Rally","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":158.24,"min_value":99.62,"max_drawdown":-9.97,"volatility":0.01,"total_return_pct":58.24,"volatility_pct":0.81},{"episode":"AI Rally","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":92.72,"min_value":83.59,"max_drawdown":-22.44,"volatility":0.01,"total_return_pct":-7.28,"volatility_pct":1.03},{"episode":"AI Rally","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":108.71,"min_value":91.2,"max_drawdown":-17.33,"volatility":0.01,"total_return_pct":8.71,"volatility_pct":1.28},{"episode":"AI Rally","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":145.75,"min_value":90.27,"max_drawdown":-16.27,"volatility":0.01,"total_return_pct":45.75,"volatility_pct":0.96},{"episode":"AI Rally","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":191.58,"min_value":98.31,"max_drawdown":-16.97,"volatility":0.01,"total_return_pct":91.58,"volatility_pct":1.29},{"episode":"AI Rally","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":114.46,"min_value":81.59,"max_drawdown":-20.2,"volatility":0.01,"total_return_pct":14.46,"volatility_pct":1.05},{"episode":"COVID Crash","ticker":"ARKK","asset_name":"Innovation Stocks","group":"New money","start_value":100.0,"end_value":118.12,"min_value":57.46,"max_drawdown":-42.54,"volatility":0.04,"total_return_pct":18.12,"volatility_pct":4.23},{"episode":"COVID Crash","ticker":"BTC-USD","asset_name":"Bitcoin","group":"New money","start_value":100.0,"end_value":94.86,"min_value":51.6,"max_drawdown":-49.91,"volatility":0.05,"total_return_pct":-5.14,"volatility_pct":5.06},{"episode":"COVID Crash","ticker":"GLD","asset_name":"Gold","group":"Old money","start_value":100.0,"end_value":110.26,"min_value":90.94,"max_drawdown":-12.53,"volatility":0.01,"total_return_pct":10.26,"volatility_pct":1.49},{"episode":"COVID Crash","ticker":"KRE","asset_name":"Regional Banks","group":"Old money","start_value":100.0,"end_value":70.03,"min_value":50.86,"max_drawdown":-49.59,"volatility":0.05,"total_return_pct":-29.97,"volatility_pct":5.46},{"episode":"COVID Crash","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":104.89,"min_value":71.44,"max_drawdown":-28.56,"volatility":0.03,"total_return_pct":4.89,"volatility_pct":3.23},{"episode":"COVID Crash","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":100.36,"min_value":66.38,"max_drawdown":-33.62,"volatility":0.04,"total_return_pct":0.36,"volatility_pct":4.06},{"episode":"COVID Crash","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":92.08,"min_value":66.28,"max_drawdown":-33.72,"volatility":0.03,"total_return_pct":-7.92,"volatility_pct":3.25},{"episode":"COVID Crash","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":113.26,"min_value":99.34,"max_drawdown":-15.73,"volatility":0.02,"total_return_pct":13.26,"volatility_pct":2.03},{"episode":"COVID Crash","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":71.46,"min_value":43.72,"max_drawdown":-56.28,"volatility":0.05,"total_return_pct":-28.54,"volatility_pct":5.42},{"episode":"COVID Crash","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":75.44,"min_value":57.21,"max_drawdown":-42.79,"volatility":0.04,"total_return_pct":-24.56,"volatility_pct":4.37},{"episode":"COVID Crash","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":102.47,"min_value":68.85,"max_drawdown":-31.15,"volatility":0.04,"total_return_pct":2.47,"volatility_pct":3.73},{"episode":"COVID Crash","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":81.86,"min_value":64.63,"max_drawdown":-35.59,"volatility":0.04,"total_return_pct":-18.14,"volatility_pct":3.8},{"episode":"Dot-Com Crash","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":17.52,"min_value":17.52,"max_drawdown":-82.96,"volatility":0.03,"total_return_pct":-82.48,"volatility_pct":3.3},{"episode":"Dot-Com Crash","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":17.91,"min_value":17.91,"max_drawdown":-83.08,"volatility":0.04,"total_return_pct":-82.09,"volatility_pct":3.99},{"episode":"Dot-Com Crash","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":57.66,"min_value":57.66,"max_drawdown":-47.52,"volatility":0.01,"total_return_pct":-42.34,"volatility_pct":1.5},{"episode":"Dot-Com Crash","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":111.49,"min_value":100.0,"max_drawdown":-1.98,"volatility":0.01,"total_return_pct":11.49,"volatility_pct":0.72},{"episode":"Dot-Com Crash","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":77.29,"min_value":74.43,"max_drawdown":-41.53,"volatility":0.02,"total_return_pct":-22.71,"volatility_pct":1.73},{"episode":"Dot-Com Crash","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":96.83,"min_value":96.83,"max_drawdown":-36.64,"volatility":0.02,"total_return_pct":-3.17,"volatility_pct":1.88},{"episode":"Dot-Com Crash","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":19.38,"min_value":19.38,"max_drawdown":-82.05,"volatility":0.03,"total_return_pct":-80.62,"volatility_pct":2.83},{"episode":"Dot-Com Crash","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":65.62,"min_value":65.62,"max_drawdown":-52.27,"volatility":0.02,"total_return_pct":-34.38,"volatility_pct":1.56},{"episode":"Global Financial Crisis","ticker":"GLD","asset_name":"Gold","group":"Old money","start_value":100.0,"end_value":123.92,"min_value":95.77,"max_drawdown":-29.41,"volatility":0.02,"total_return_pct":23.92,"volatility_pct":1.95},{"episode":"Global Financial Crisis","ticker":"KRE","asset_name":"Regional Banks","group":"Old money","start_value":100.0,"end_value":34.01,"min_value":34.01,"max_drawdown":-65.99,"volatility":0.04,"total_return_pct":-65.99,"volatility_pct":3.9},{"episode":"Global Financial Crisis","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":48.44,"min_value":48.04,"max_drawdown":-53.4,"volatility":0.02,"total_return_pct":-51.56,"volatility_pct":2.35},{"episode":"Global Financial Crisis","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":41.49,"min_value":38.33,"max_drawdown":-61.67,"volatility":0.03,"total_return_pct":-58.51,"volatility_pct":2.82},{"episode":"Global Financial Crisis","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":44.81,"min_value":44.81,"max_drawdown":-55.19,"volatility":0.02,"total_return_pct":-55.19,"volatility_pct":2.4},{"episode":"Global Financial Crisis","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":125.07,"min_value":99.47,"max_drawdown":-16.19,"volatility":0.01,"total_return_pct":25.07,"volatility_pct":1.11},{"episode":"Global Financial Crisis","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":52.08,"min_value":51.09,"max_drawdown":-57.36,"volatility":0.04,"total_return_pct":-47.92,"volatility_pct":3.55},{"episode":"Global Financial Crisis","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":18.44,"min_value":18.2,"max_drawdown":-81.8,"volatility":0.04,"total_return_pct":-81.56,"volatility_pct":4.43},{"episode":"Global Financial Crisis","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":48.61,"min_value":48.24,"max_drawdown":-53.04,"volatility":0.02,"total_return_pct":-51.39,"volatility_pct":2.4},{"episode":"Global Financial Crisis","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":57.52,"min_value":57.52,"max_drawdown":-46.48,"volatility":0.02,"total_return_pct":-42.48,"volatility_pct":2.1},{"episode":"Regional Banking Crisis","ticker":"ARKK","asset_name":"Innovation Stocks","group":"New money","start_value":100.0,"end_value":102.2,"min_value":87.73,"max_drawdown":-13.83,"volatility":0.02,"total_return_pct":2.2,"volatility_pct":2.43},{"episode":"Regional Banking Crisis","ticker":"BTC-USD","asset_name":"Bitcoin","group":"New money","start_value":100.0,"end_value":121.36,"min_value":90.0,"max_drawdown":-13.62,"volatility":0.03,"total_return_pct":21.36,"volatility_pct":2.64},{"episode":"Regional Banking Crisis","ticker":"GLD","asset_name":"Gold","group":"Old money","start_value":100.0,"end_value":106.23,"min_value":98.21,"max_drawdown":-5.38,"volatility":0.01,"total_return_pct":6.23,"volatility_pct":1.04},{"episode":"Regional Banking Crisis","ticker":"KRE","asset_name":"Regional Banks","group":"Old money","start_value":100.0,"end_value":65.57,"min_value":60.71,"max_drawdown":-39.29,"volatility":0.03,"total_return_pct":-34.43,"volatility_pct":3.37},{"episode":"Regional Banking Crisis","ticker":"QQQ","asset_name":"Nasdaq 100","group":"New money","start_value":100.0,"end_value":116.17,"min_value":96.18,"max_drawdown":-3.82,"volatility":0.01,"total_return_pct":16.17,"volatility_pct":1.14},{"episode":"Regional Banking Crisis","ticker":"SMH","asset_name":"Semiconductors","group":"New money","start_value":100.0,"end_value":118.9,"min_value":97.85,"max_drawdown":-9.12,"volatility":0.02,"total_return_pct":18.9,"volatility_pct":2.0},{"episode":"Regional Banking Crisis","ticker":"SPY","asset_name":"S&P 500","group":"Baseline","start_value":100.0,"end_value":103.7,"min_value":95.28,"max_drawdown":-4.72,"volatility":0.01,"total_return_pct":3.7,"volatility_pct":0.92},{"episode":"Regional Banking Crisis","ticker":"TLT","asset_name":"Long Bonds","group":"Old money","start_value":100.0,"end_value":102.39,"min_value":99.69,"max_drawdown":-7.37,"volatility":0.01,"total_return_pct":2.39,"volatility_pct":1.13},{"episode":"Regional Banking Crisis","ticker":"XLE","asset_name":"Energy","group":"Old money","start_value":100.0,"end_value":88.65,"min_value":88.17,"max_drawdown":-12.2,"volatility":0.02,"total_return_pct":-11.35,"volatility_pct":1.72},{"episode":"Regional Banking Crisis","ticker":"XLF","asset_name":"Financials","group":"Old money","start_value":100.0,"end_value":88.61,"min_value":86.01,"max_drawdown":-13.99,"volatility":0.01,"total_return_pct":-11.39,"volatility_pct":1.45},{"episode":"Regional Banking Crisis","ticker":"XLK","asset_name":"Technology","group":"New money","start_value":100.0,"end_value":116.93,"min_value":96.42,"max_drawdown":-4.66,"volatility":0.01,"total_return_pct":16.93,"volatility_pct":1.26},{"episode":"Regional Banking Crisis","ticker":"XLU","asset_name":"Utilities","group":"Old money","start_value":100.0,"end_value":98.26,"min_value":96.39,"max_drawdown":-8.05,"volatility":0.01,"total_return_pct":-1.74,"volatility_pct":1.08}],"episodes":[{"episode":"Dot-Com Crash","start":"2000-03-10","end":"2002-10-09","story":"Tech stocks fell sharply after the internet bubble burst."},{"episode":"Global Financial Crisis","start":"2007-10-09","end":"2009-03-09","story":"Banks and financial assets fell during the housing and credit crisis."},{"episode":"COVID Crash","start":"2020-02-19","end":"2020-06-30","story":"A sudden shutdown shocked the whole market, but some assets recovered faster than others."},{"episode":"2022 Inflation Shock","start":"2022-01-03","end":"2022-12-30","story":"Rising rates hurt growth stocks, bonds, and many assets that were supposed to diversify risk."},{"episode":"Regional Banking Crisis","start":"2023-03-06","end":"2023-05-31","story":"Banks became the fragile asset class, while parts of tech held up better."},{"episode":"AI Rally","start":"2023-01-03","end":"2024-12-31","story":"Semiconductors, Bitcoin, and large tech became major winners in the new wealth cycle."}],"crossovers":{"Dot-Com Crash":{"label":"New money craters","note":"Tech bubble bursts — new money collapses while old money holds steady"},"Global Financial Crisis":{"label":"Old money falls too","note":"Banks drag down traditional assets as credit crisis deepens"},"COVID Crash":{"label":"New money recovers first","note":"Tech bounces back faster than old-economy stocks"},"2022 Inflation Shock":{"label":"Neither side wins","note":"Rising rates hurt both groups — nowhere to hide"},"Regional Banking Crisis":{"label":"Banks fracture","note":"Old money hit hard as regional banks collapse"},"AI Rally":{"label":"New money dominates","note":"Semiconductors and Bitcoin surge in the new wealth cycle"}}};
+
+const ASSETS = {
+  SPY:     { name:'S&P 500',          group:'Baseline', cls:'base', desc:'Tracks the 500 largest US companies. The benchmark everything else is measured against.' },
+  XLF:     { name:'Financials',        group:'Old money', cls:'old', desc:'Banks, insurers, and investment firms — the backbone of traditional finance.' },
+  KRE:     { name:'Regional Banks',    group:'Old money', cls:'old', desc:'Smaller local banks that lend to businesses and homeowners in their communities.' },
+  XLE:     { name:'Energy',            group:'Old money', cls:'old', desc:'Oil, gas, and energy companies. Tied to commodity prices and global demand.' },
+  XLU:     { name:'Utilities',         group:'Old money', cls:'old', desc:'Electric and gas utilities. Slow and steady — known for stability and dividends.' },
+  TLT:     { name:'Long Bonds',        group:'Old money', cls:'old', desc:'US government bonds maturing 20+ years out. Usually a safe haven — but not always.' },
+  GLD:     { name:'Gold',              group:'Old money', cls:'old', desc:'The original store of value. Tends to rise when investors fear uncertainty.' },
+  QQQ:     { name:'Nasdaq 100',        group:'New money', cls:'new', desc:'The 100 largest non-financial tech companies. Home of Apple, Microsoft, and Nvidia.' },
+  XLK:     { name:'Technology',        group:'New money', cls:'new', desc:'Software, hardware, and tech giants — the engine of modern economic growth.' },
+  SMH:     { name:'Semiconductors',    group:'New money', cls:'new', desc:'Chipmakers like Nvidia and TSMC. The picks-and-shovels of the digital economy.' },
+  ARKK:    { name:'Innovation Stocks', group:'New money', cls:'new', desc:'High-growth bets on disruptive companies — genomics, robotics, fintech. High risk, high reward.' },
+  'BTC-USD':{ name:'Bitcoin',          group:'New money', cls:'new', desc:'The first cryptocurrency. Extremely volatile — it can double or halve in months.' },
+};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentEpisode = 'COVID Crash';
+let selectedAsset  = null;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const getEpisodeAssets = ep =>
+  [...new Set(RAW.summary.filter(r => r.episode === ep).map(r => r.ticker))]
+    .filter(t => ASSETS[t]);
+
+const getSummary = (ep, ticker) =>
+  RAW.summary.find(r => r.episode === ep && r.ticker === ticker);
+
+const fmtRet = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+
+// ─── Episode bar ─────────────────────────────────────────────────────────────
+function buildEpBar() {
+  const bar = document.getElementById('ep-bar');
+  bar.innerHTML = '';
+  RAW.episodes.forEach(ep => {
+    const btn = document.createElement('button');
+    btn.className = 'ep-btn' + (ep.episode === currentEpisode ? ' active' : '');
+    btn.textContent = ep.episode;
+    btn.addEventListener('click', () => {
+      currentEpisode = ep.episode;
+      selectedAsset  = null;
+      render();
+    });
+    bar.appendChild(btn);
+  });
+
+  const ep     = RAW.episodes.find(e => e.episode === currentEpisode);
+  const cross  = RAW.crossovers[currentEpisode];
+  const suffix = cross ? ' ' + cross.note + '.' : '';
+  document.getElementById('story-line').textContent = ep ? ep.story + suffix : '';
+  document.getElementById('annotation-pill').textContent = cross ? cross.label : '';
+}
+
+// ─── Asset grid ──────────────────────────────────────────────────────────────
+function buildAssetGrid() {
+  const grid    = document.getElementById('asset-grid');
+  const tickers = getEpisodeAssets(currentEpisode);
+  grid.innerHTML = '';
+  tickers.forEach(t => {
+    const a    = ASSETS[t];
+    const card = document.createElement('div');
+    card.className = 'asset-card ' + a.cls + (selectedAsset === t ? ' selected' : '');
+    card.innerHTML = `
+      <div class="card-ticker">${t}</div>
+      <div class="card-name">${a.name}</div>
+      <div class="card-group ${a.cls}">${a.group}</div>`;
+    card.addEventListener('click', () => {
+      selectedAsset = selectedAsset === t ? null : t;
+      render();
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ─── Info panel ──────────────────────────────────────────────────────────────
+function buildInfoPanel() {
+  const panel = document.getElementById('info-panel');
+  if (!selectedAsset) { panel.className = 'info-panel'; return; }
+  const a   = ASSETS[selectedAsset];
+  const row = getSummary(currentEpisode, selectedAsset);
+  const ret = row ? row.total_return_pct : null;
+  const dd  = row ? row.max_drawdown     : null;
+
+  panel.className = 'info-panel visible';
+  panel.innerHTML = `
+    <div class="info-header">
+      <span class="group-badge ${a.cls}">${a.group}</span>
+      <span class="info-name">${a.name}<span class="info-ticker">${selectedAsset}</span></span>
+    </div>
+    <div class="info-desc">${a.desc}</div>
+    ${row ? `<div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-label">Total return</div>
+        <div class="stat-val ${ret >= 0 ? 'pos' : 'neg'}">${fmtRet(ret)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Worst drop</div>
+        <div class="stat-val neg">${dd.toFixed(1)}%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">$100 became</div>
+        <div class="stat-val neutral">$${row.end_value.toFixed(0)}</div>
+      </div>
+    </div>` : ''}`;
+}
+
+// ─── D3 chart ────────────────────────────────────────────────────────────────
+function buildChart() {
+  const container = document.getElementById('chart-container');
+  container.innerHTML = '';
+
+  // Dimensions
+  const totalW = container.clientWidth || 860;
+  const margin = { top: 16, right: 40, bottom: 40, left: 52 };
+  const W      = totalW - margin.left - margin.right;
+  const H      = 280;
+
+  // Data
+  const rows  = RAW.oldVsNew.filter(r => r.episode === currentEpisode);
+  const days  = [...new Set(rows.map(r => r.episode_day))].sort((a, b) => a - b);
+  const oldMap = new Map(), newMap = new Map();
+  rows.forEach(r => {
+    if (r.group === 'Old money') oldMap.set(r.episode_day, r.indexed_100);
+    else                         newMap.set(r.episode_day, r.indexed_100);
+  });
+
+  const oldSeries = days.map(d => ({ day: d, val: oldMap.get(d) ?? null })).filter(d => d.val != null);
+  const newSeries = days.map(d => ({ day: d, val: newMap.get(d) ?? null })).filter(d => d.val != null);
+  const allVals   = [...oldSeries, ...newSeries].map(d => d.val);
+
+  // Scales
+  const xScale = d3.scaleLinear()
+    .domain([0, d3.max(days)])
+    .range([0, W]);
+
+  const [yMin, yMax] = d3.extent(allVals);
+  const yPad = (yMax - yMin) * 0.08;
+  const yScale = d3.scaleLinear()
+    .domain([Math.min(yMin - yPad, 98), yMax + yPad])
+    .range([H, 0])
+    .nice();
+
+  // SVG
+  const svg = d3.select(container)
+    .append('svg')
+      .attr('width',  totalW)
+      .attr('height', H + margin.top + margin.bottom)
+    .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Grid lines
+  svg.append('g')
+    .attr('class', 'grid')
+    .call(
+      d3.axisLeft(yScale)
+        .ticks(5)
+        .tickSize(-W)
+        .tickFormat('')
+    )
+    .call(g => {
+      g.select('.domain').remove();
+      g.selectAll('line').attr('class', 'grid-line');
+    });
+
+  // $100 baseline
+  svg.append('line')
+    .attr('class', 'baseline-line')
+    .attr('x1', 0).attr('x2', W)
+    .attr('y1', yScale(100)).attr('y2', yScale(100));
+
+  // Axes
+  svg.append('g')
+    .attr('class', 'axis')
+    .attr('transform', `translate(0,${H})`)
+    .call(
+      d3.axisBottom(xScale)
+        .ticks(6)
+        .tickFormat(d => d === 0 ? 'Day 0' : `Day ${d}`)
+    )
+    .call(g => g.select('.domain').attr('stroke', '#e2e0d8'));
+
+  svg.append('g')
+    .attr('class', 'axis')
+    .call(
+      d3.axisLeft(yScale)
+        .ticks(5)
+        .tickFormat(d => '$' + d3.format('.0f')(d))
+    )
+    .call(g => g.select('.domain').remove());
+
+  // Line generators
+  const lineGen = key => d3.line()
+    .x(d => xScale(d.day))
+    .y(d => yScale(d.val))
+    .curve(d3.curveCatmullRom.alpha(0.5))
+    .defined(d => d.val != null);
+
+  // Old money line
+  svg.append('path')
+    .datum(oldSeries)
+    .attr('class', 'line-old')
+    .attr('d', lineGen('old')(oldSeries));
+
+  // New money line
+  svg.append('path')
+    .datum(newSeries)
+    .attr('class', 'line-new')
+    .attr('d', lineGen('new')(newSeries));
+
+  // ── Crosshair + tooltip interaction ──────────────────────────────────────
+  const tooltip   = document.getElementById('tooltip');
+  const crosshair = svg.append('line')
+    .attr('class', 'crosshair')
+    .attr('y1', 0).attr('y2', H);
+
+  const bisect = d3.bisector(d => d.day).left;
+
+  svg.append('rect')
+    .attr('width', W).attr('height', H)
+    .attr('fill', 'transparent')
+    .on('mousemove', function(event) {
+      const [mx] = d3.pointer(event);
+      const day  = Math.round(xScale.invert(mx));
+
+      // Find nearest old + new values
+      const oi = bisect(oldSeries, day);
+      const ni = bisect(newSeries, day);
+      const oRow = oldSeries[Math.min(oi, oldSeries.length - 1)];
+      const nRow = newSeries[Math.min(ni, newSeries.length - 1)];
+
+      crosshair
+        .attr('x1', mx).attr('x2', mx)
+        .attr('opacity', 1);
+
+      tooltip.style.opacity = '1';
+      const rect = container.getBoundingClientRect();
+      const left = event.clientX - rect.left + 16;
+      tooltip.style.left = (left + 160 > totalW ? left - 170 : left) + 'px';
+      tooltip.style.top  = (event.clientY - rect.top - 20) + 'px';
+
+      tooltip.innerHTML = `
+        <div class="tooltip-day">Day ${day}</div>
+        <div class="tooltip-row">
+          <span class="tooltip-label" style="color:#185FA5">Old money</span>
+          <span class="tooltip-val">${oRow ? '$' + oRow.val.toFixed(1) : '—'}</span>
+        </div>
+        <div class="tooltip-row">
+          <span class="tooltip-label" style="color:#0F6E56">New money</span>
+          <span class="tooltip-val">${nRow ? '$' + nRow.val.toFixed(1) : '—'}</span>
+        </div>`;
+    })
+    .on('mouseleave', () => {
+      crosshair.attr('opacity', 0);
+      tooltip.style.opacity = '0';
+    });
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function render() {
+  buildEpBar();
+  buildAssetGrid();
+  buildInfoPanel();
+  buildChart();
+}
+
+render();
+window.addEventListener('resize', () => buildChart());
+</script>
+</body>
+</html>
