@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Crisis Asset Analytics & Generalization Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Tight layout reset for single-frame viewports */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 12px;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1260px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        h1 { font-size: 20px; margin: 0; color: #1a1a1a; }
+        h2 { font-size: 14px; margin: 0 0 8px 0; color: #1a1a1a; }
+        h3 { font-size: 13px; margin: 0 0 6px 0; color: #495057; text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        .controls { display: flex; align-items: center; gap: 10px; }
+        select {
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .story-box {
+            background-color: #eef2f7;
+            border-left: 4px solid #0d6efd;
+            padding: 8px 12px;
+            border-radius: 0 4px 4px 0;
+            margin-bottom: 10px;
+            font-style: italic;
+            font-size: 13px;
+        }
+        
+        /* --- Compact Legend Guide --- */
+        .color-legend-bar {
+            display: flex;
+            gap: 16px;
+            background: #f8f9fa;
+            border: 1px dashed #ced4da;
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            align-items: center;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot-new { background-color: #0d6efd; }
+        .dot-old { background-color: #6c757d; }
+        .dot-base { background-color: #137333; }
+
+        /* --- Ultra-Compact Reference Guide (2 Columns, Tight Rows) --- */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+            background: #fdfdfd;
+            padding: 8px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+        .info-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+        }
+        .card-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 150px;
+        }
+        .card-title { font-weight: 700; font-size: 12px; color: #202124; white-space: nowrap; }
+        .badge { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 600; text-transform: uppercase;}
+        .badge-new { background: #e2ecff; color: #0d6efd; }
+        .badge-old { background: #eaeaea; color: #495057; }
+        .badge-base { background: #e6f4ea; color: #137333; }
+        .card-desc { font-size: 11.5px; color: #5f6368; line-height: 1.3; flex-grow: 1; }
+
+        /* --- Jargon Tooltip Styling --- */
+        .jargon {
+            text-decoration: underline dotted #0d6efd;
+            cursor: help;
+            font-weight: 600;
+            color: #0d6efd;
+        }
+
+        /* --- Viewport Optimized Canvas Grid --- */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .chart-wrapper {
+            background: #fff;
+            border: 1px solid #eef2f7;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        /* --- Chart Structural Nodes --- */
+        .axis text { font-size: 10px; fill: #555; }
+        .bar { transition: fill 0.15s ease; }
+        .bar:hover { fill: #ffc107 !important; }
+        .line { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+        
+        .global-tooltip {
+            position: absolute;
+            background: rgba(33, 37, 41, 0.95);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-row">
+        <h1>Market Performance & Macro Generalization</h1>
+        <div class="controls">
+            <label for="episode-select"><strong>Timeline:</strong></label>
+            <select id="episode-select"></select>
+        </div>
+    </div>
+
+    <div id="story" class="story-box"></div>
+
+    <div class="color-legend-bar">
+        <span>Asset Group Guide:</span>
+        <div class="legend-item"><span class="legend-dot dot-new"></span> New Money (Tech / Crypto)</div>
+        <div class="legend-item"><span class="legend-dot dot-old"></span> Old Money (Tangible / Defensive)</div>
+        <div class="legend-item"><span class="legend-dot dot-base"></span> Baseline (S&P 500)</div>
+    </div>
+
+    <h3>Asset Class Reference Guide</h3>
+    <div id="info-grid" class="info-grid"></div>
+
+    <div class="charts-grid">
+        <div class="chart-wrapper">
+            <h2>Individual Asset Return Rankings</h2>
+            <div id="bar-chart"></div>
+        </div>
+        <div class="chart-wrapper">
+            <h2>The Generalization: Old vs New Money</h2>
+            <div id="line-chart"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tooltip" class="global-tooltip"></div>
+
+<script>
+// --- Compact Metadata Store ---
+const assetProfiles = {
+    "SPY": { name: "S&P 500 Index", group: "Baseline", desc: "A basket tracking 500 largest US firms; acts as the absolute benchmark for traditional stock markets." },
+    "QQQ": { name: "Nasdaq 100", group: "New money", desc: "Tracks the top 100 mega-cap tech innovators. Main gauge for large-scale digital growth." },
+    "XLK": { name: "Technology Sector", group: "New money", desc: "Pure corporate exposure to enterprise software, cloud infrastructure, and electronics systems." },
+    "SMH": { name: "Semiconductors", group: "New money", desc: "Tracks global microchip manufacturers. Critical hardware engines with structural <span class='jargon' data-tip='Volatility measures how wildly an asset price swings. High volatility means values move aggressively fast.'>volatility</span>." },
+    "ARKK": { name: "Innovation Fund", group: "New money", desc: "An active disruptive <span class='jargon' data-tip='An ETF (Exchange-Traded Fund) operates like a basket of stocks you can trade instantly like a single stock.'>ETF</span> holding high-risk, experimental future tech plays." },
+    "BTC-USD": { name: "Bitcoin", group: "New money", desc: "Decentralized digital alternative <span class='jargon' data-tip='Crypto assets utilize secure computer networks to process transactions outside central banking infrastructure.'>crypto asset</span> representing decentralized modern wealth." },
+    "XLF": { name: "Financial Sector", group: "Old money", desc: "Tracks foundational economic pillars including wall street investment banks and traditional credit networks." },
+    "KRE": { name: "Regional Banking", group: "Old money", desc: "Mid-sized neighborhood/commercial banking hubs deeply sensitive to domestic business credit crunches." },
+    "XLE": { name: "Energy Giants", group: "Old money", desc: "Legacy petroleum and natural resource extraction corporations closely tied to global oil cycles." },
+    "XLU": { name: "Utilities Infrastructure", group: "Old money", desc: "Regulated electricity/water providers. Low growth, but rock-solid defensive safety nets during market crashes." },
+    "TLT": { name: "Long Treasury Bonds", group: "Old money", desc: "US Federal debt matching a 20+ year horizon. Highly sensitive to central bank interest adjustments." },
+    "GLD": { name: "Gold Trust", group: "Old money", desc: "A physical trust backed directly by gold bullion vaults; used as inflation protection." }
+};
+
+const episodeStories = {
+    "Dot-Com Crash": "Tech stocks fell sharply after the internet bubble burst.",
+    "Global Financial Crisis": "Banks and financial assets fell during the housing and credit crisis.",
+    "COVID Crash": "A sudden shutdown shocked the whole market, but some assets recovered faster than others.",
+    "2022 Inflation Shock": "Rising rates hurt growth stocks, bonds, and many assets that were supposed to diversify risk.",
+    "Regional Banking Crisis": "Banks became the fragile asset class, while parts of tech held up better.",
+    "AI Rally": "Semiconductors, Bitcoin, and large tech became major winners in the new wealth cycle."
+};
+
+// --- Single Frame Responsive Geometry Layout Adjustments ---
+const width = 590, height = 280;
+const chartMargin = {top: 15, right: 20, bottom: 35, left: 110};
+const innerW = width - chartMargin.left - chartMargin.right;
+const innerH = height - chartMargin.top - chartMargin.bottom;
+
+const tooltip = d3.select("#tooltip");
+
+const barSvg = d3.select("#bar-chart").append("svg").attr("width", "100%").attr("viewBox", `0 0 ${width} ${height}`)
+    .append("g").attr("transform", `translate(${chartMargin.left},${chartMargin.top})`);
+
+const lineSvg = d3.select("#line-chart").append("svg").attr("width", "100%").attr("viewBox", `0 0 ${width} ${height}`)
+    .append("g").attr("transform", `translate(${chartMargin.left},${chartMargin.top})`);
+
+const barXAxis = barSvg.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`);
+const barYAxis = barSvg.append("g").attr("class", "axis");
+const lineXAxis = lineSvg.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`);
+const lineYAxis = lineSvg.append("g").attr("class", "axis");
+
+Promise.all([
+    d3.csv("crisis_asset_summary.csv"),
+    d3.csv("market_crisis_data.csv")
+]).then(function([summaryData, marketData]) {
+    summaryData.forEach(d => { d.total_return_pct = +d.total_return_pct; d.max_drawdown = +d.max_drawdown; });
+    marketData.forEach(d => { d.indexed_100 = +d.indexed_100; d.date = d3.timeParse("%Y-%m-%d")(d.date); });
+
+    const uniqueEpisodes = Array.from(new Set(summaryData.map(d => d.episode)));
+    d3.select("#episode-select").selectAll("option").data(uniqueEpisodes).enter().append("option").text(d => d).attr("value", d => d);
+
+    renderInfoCards(); 
+    updateDashboard(uniqueEpisodes[0], summaryData, marketData);
+
+    d3.select("#episode-select").on("change", function(e) {
+        updateDashboard(e.target.value, summaryData, marketData);
+    });
+});
+
+function renderInfoCards() {
+    const container = d3.select("#info-grid");
+    Object.keys(assetProfiles).forEach(ticker => {
+        const info = assetProfiles[ticker];
+        const badgeClass = info.group === "New money" ? "badge-new" : (info.group === "Old money" ? "badge-old" : "badge-base");
+        
+        container.append("div").attr("class", "info-card").html(`
+            <div class="card-left">
+                <span class="card-title">${ticker}</span>
+                <span class="badge ${badgeClass}">${info.group}</span>
+            </div>
+            <div class="card-desc">${info.desc}</div>
+        `);
+    });
+
+    d3.selectAll(".jargon")
+        .on("mouseover", function(event) {
+            tooltip.style("opacity", 1).html(d3.select(this).attr("data-tip"));
+        })
+        .on("mousemove", function(event) {
+            tooltip.style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 35) + "px");
+        })
+        .on("mouseout", () => tooltip.style("opacity", 0));
+}
+
+function updateDashboard(episode, summary, market) {
+    d3.select("#story").text(episodeStories[episode] || "Processing...");
+    renderBarRankingChart(episode, summary);
+    renderGeneralizationChart(episode, market);
+}
+
+function renderBarRankingChart(episode, summary) {
+    const subset = summary.filter(d => d.episode === episode).sort((a,b) => b.total_return_pct - a.total_return_pct);
+    const x = d3.scaleLinear().range([0, innerW]).domain([Math.min(0, d3.min(subset, d => d.total_return_pct)), d3.max(subset, d => d.total_return_pct)]);
+    const y = d3.scaleBand().range([0, innerH]).padding(0.2).domain(subset.map(d => d.ticker));
+
+    barXAxis.transition().duration(300).call(d3.axisBottom(x).ticks(5).tickFormat(d => d + "%"));
+    barYAxis.transition().duration(300).call(d3.axisLeft(y));
+
+    const bars = barSvg.selectAll(".bar").data(subset, d => d.ticker);
+    bars.exit().remove();
+    bars.enter().append("rect").attr("class", "bar")
+        .merge(bars)
+        .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1).html(`<strong>${d.asset_name}</strong><br/>Return: ${d.total_return_pct.toFixed(1)}%<br/>Drawdown: ${d.max_drawdown.toFixed(1)}%`);
+        })
+        .on("mousemove", (event) => tooltip.style("left", (event.pageX + 12) + "px").style("top", (event.pageY - 40) + "px"))
+        .on("mouseout", () => tooltip.style("opacity", 0))
+        .transition().duration(400)
+        .attr("y", d => y(d.ticker))
+        .attr("height", y.bandwidth())
+        .attr("x", d => d.total_return_pct >= 0 ? x(0) : x(d.total_return_pct))
+        .attr("width", d => Math.abs(x(d.total_return_pct) - x(0)))
+        .attr("fill", d => d.group === "New money" ? "#0d6efd" : (d.group === "Baseline" ? "#137333" : "#6c757d"));
+}
+
+function renderGeneralizationChart(episode, market) {
+    const subset = market.filter(d => d.episode === episode);
+    const rolledMap = d3.rollup(subset, v => d3.mean(v, d => d.indexed_100), d => d.date.getTime(), d => d.group);
+
+    const flatTrendData = [];
+    for (const [timeStr, groupsMap] of rolledMap.entries()) {
+        for (const [groupName, meanValue] of groupsMap.entries()) {
+            flatTrendData.push({ date: new Date(timeStr), group: groupName, value: meanValue });
+        }
+    }
+    const nestedTrends = d3.groups(flatTrendData, d => d.group);
+
+    const xScale = d3.scaleTime().range([0, innerW]).domain(d3.extent(subset, d => d.date));
+    const yScale = d3.scaleLinear().range([innerH, 0]).domain([d3.min(flatTrendData, d => d.value) - 4, d3.max(flatTrendData, d => d.value) + 4]);
+
+    lineXAxis.transition().duration(300).call(d3.axisBottom(xScale).ticks(4));
+    lineYAxis.transition().duration(300).call(d3.axisLeft(yScale));
+
+    const lineGen = d3.line().x(d => xScale(d.date)).y(d => yScale(d.value));
+    const colorPicker = g => g === "New money" ? "#0d6efd" : (g === "Baseline" ? "#137333" : "#6c757d");
+
+    const lines = lineSvg.selectAll(".trend-line").data(nestedTrends, d => d[0]);
+    lines.exit().remove();
+    lines.enter().append("path").attr("class", "trend-line line")
+        .merge(lines)
+        .transition().duration(400)
+        .attr("d", d => lineGen(d[1]))
+        .attr("stroke", d => colorPicker(d[0]));
+
+    lineSvg.selectAll(".tracker-rect").remove();
+    lineSvg.append("rect")
+        .attr("class", "tracker-rect")
+        .attr("width", innerW).attr("height", innerH).attr("fill", "none").attr("pointer-events", "all")
+        .on("mousemove", function(event) {
+            const xPos = d3.pointer(event, this)[0];
+            const hoverDate = xScale.invert(xPos);
+            const bisect = d3.bisector(d => d.date).left;
+            let labelText = `<strong>Date: ${d3.timeFormat("%Y-%m-%d")(hoverDate)}</strong>`;
+            
+            nestedTrends.forEach(trend => {
+                const arr = trend[1].sort((a,b) => a.date - b.date);
+                const idx = bisect(arr, hoverDate, 1);
+                const match = arr[idx - 1];
+                if(match) labelText += `<br/><span style='color:${colorPicker(trend[0])}'>●</span> ${trend[0]}: ${match.value.toFixed(1)}`;
+            });
+            tooltip.style("opacity", 1).html(labelText).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 40) + "px");
+        })
+        .on("mouseout", () => tooltip.style("opacity", 0));
+}
+</script>
+</body>
+</html>
