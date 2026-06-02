@@ -5,185 +5,284 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Who Wins When Markets Break?</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <section id="hero">
-    <div class="hero-intro">
-      <p class="intro-text">
-        Your grandparents trusted gold and bonds. Your generation grew up hearing about
-        Bitcoin and semiconductors. But when markets break, which type of wealth actually
-        holds up? The "safe" choices aren't always safe — and the "risky" ones aren't
-        always risky. The answer changes every time.
-      </p>
-    </div>
-    <h1>Who Wins When<br/>Markets Break?</h1>
-    <div class="selectors">
-      <div class="selector-row">
-        <div class="selector-group">
-          <label>Market episode</label>
-          <select id="episode-dropdown">
-            <option value="Dot-Com Crash">Dot-Com Crash (2000–2002)</option>
-            <option value="Global Financial Crisis">2008 Crisis (2007–2009)</option>
-            <option value="COVID Crash">COVID Crash (2020)</option>
-            <option value="2022 Inflation Shock">2022 Inflation Shock</option>
-            <option value="Regional Banking Crisis">Banking Crisis (2023)</option>
-            <option value="AI Rally">AI Rally (2023–2024)</option>
-          </select>
+  <main>
+    <!-- HERO -->
+    <section id="hero" class="hero-section">
+      <div class="hero-intro">
+        <p class="intro-text">Your grandparents trusted gold and bonds. Your generation grew up hearing about Bitcoin and semiconductors. But when markets break, which type of wealth actually holds up? The answer changes every time.</p>
+      </div>
+      <p class="eyebrow center">Old money vs new money</p>
+      <h1>Who Wins When<br />Markets Break?</h1>
+      <p class="market-crisis-def">A market crisis is a period when investors suddenly reprice risk. It can come from a recession, inflation, bank failures, a pandemic, or a bubble bursting. It does not mean every asset falls. It means the usual story gets tested.</p>
+      <div class="selectors">
+        <div class="selector-row">
+          <div class="selector-group">
+            <label for="episode-dropdown">Market episode</label>
+            <select id="episode-dropdown"></select>
+          </div>
+          <div class="selector-group">
+            <label for="asset-dropdown">Asset</label>
+            <select id="asset-dropdown"></select>
+          </div>
         </div>
-        <div class="selector-group">
-          <label>Asset</label>
-          <select id="asset-dropdown"></select>
+        <button class="begin-btn" id="shuffle-assets-btn" type="button">Shuffle assets</button>
+        <button class="begin-btn primary" id="begin-btn" type="button">See what happened →</button>
+        <p class="small-note">SPY is always used as the market benchmark.</p>
+      </div>
+    </section>
+
+    <div id="episode-banner"></div>
+
+    <!-- SLIDESHOW -->
+    <div id="slideshow">
+
+      <!-- Slide 1: Inflation -->
+      <section class="slide active" id="slide-1">
+        <div class="slide-label">Before the trade</div>
+        <h2>Cash has a quiet benchmark too.</h2>
+        <p class="slide-description" id="inflation-blurb"></p>
+        <div class="chart-container large">
+          <div id="inflation-chart"></div>
+          <p id="inflation-hint" class="chart-hint" style="display:none"></p>
         </div>
-      </div>
-      <button class="begin-btn" id="begin-btn">See what happened →</button>
-    </div>
-  </section>
-
-  <div id="episode-banner"></div>
-
-  <div id="slideshow">
-
-    <!-- Slide 1: Inflation -->
-    <div class="slide active" id="slide-1">
-      <div class="slide-label">Before we start</div>
-      <h2>What is $100 actually worth?</h2>
-      <p class="slide-description" id="inflation-blurb">
-        At the start of the
-        <span class="highlight-pill" id="blurb-episode">Dot-Com Crash</span>
-        in <span class="highlight-pill" id="blurb-year">2000</span>,
-        $100 had a real purchasing power of
-        <span class="highlight-pill highlight-gold" id="blurb-start-value">$100.00</span>.
-        By <span class="highlight-pill" id="blurb-end-year">2005</span>,
-        inflation had quietly eaten it down to
-        <span class="highlight-pill highlight-red" id="blurb-end-value">$93.20</span>.
-        Any investment had to beat that just to break even.
-      </p>
-      <div class="chart-container">
-        <div id="inflation-chart"></div>
-      </div>
-      <div class="slide-nav">
-        <div class="slide-dots">
-          <div class="dot active"></div><div class="dot"></div>
-          <div class="dot"></div><div class="dot"></div>
+        <div class="slide-nav">
+          <div class="slide-dots">
+            <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <button class="nav-btn next" data-direction="next" type="button">See the investment →</button>
         </div>
-        <button class="nav-btn next" data-direction="next">Now see your investment →</button>
-      </div>
-    </div>
+      </section>
 
-    <!-- Slide 2: $100 line chart + bar chart -->
-    <div class="slide" id="slide-2">
-      <div class="slide-label">Your $100</div>
-      <h2 id="slide-2-title">Loading...</h2>
-      <p class="slide-description" id="slide-2-desc"></p>
-      <div class="chart-container">
-        <div id="main-chart"></div>
-      </div>
-      <div class="chart-container" style="margin-top:8px;">
-        <p class="chart-section-label">How every asset performed this episode</p>
-        <div id="bar-chart"></div>
-      </div>
-      <div class="slide-nav">
-        <button class="nav-btn back" data-direction="back">← Back</button>
-        <div class="slide-dots">
-          <div class="dot"></div><div class="dot active"></div>
-          <div class="dot"></div><div class="dot"></div>
+      <!-- Slide 2: $100 chart + bar chart -->
+      <section class="slide" id="slide-2">
+        <div class="slide-label">The selected trade</div>
+        <h2 id="slide-2-title">Loading...</h2>
+        <p class="slide-description" id="slide-2-desc"></p>
+        <div class="chart-container large">
+          <div class="chart-caption-row">
+            <span class="legend-item"><i class="line-swatch selected"></i> Selected asset</span>
+            <span class="legend-item"><i class="line-swatch benchmark"></i> SPY benchmark</span>
+          </div>
+          <div id="main-chart"></div>
         </div>
-        <button class="nav-btn next" data-direction="next">What is this asset? →</button>
-      </div>
-    </div>
+        <div class="chart-container">
+          <p class="chart-section-label">How every asset performed this episode</p>
+          <p class="chart-note">Hover any bar for details. Your selected asset is highlighted.</p>
+          <div id="bar-chart"></div>
+        </div>
+        <div class="slide-nav">
+          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
+          <div class="slide-dots">
+            <span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <button class="nav-btn next" data-direction="next" type="button">What is this asset? →</button>
+        </div>
+      </section>
 
-    <!-- Slide 3: Asset info + old vs new chart -->
-    <div class="slide" id="slide-3">
-      <div class="slide-label">The context</div>
-      <div id="asset-info-panel"></div>
-      <div class="chart-container" style="margin-top:8px;">
-        <div class="old-vs-new-header">
+      <!-- Slide 3: Asset info + old vs new -->
+      <section class="slide" id="slide-3">
+        <div class="slide-label">The context</div>
+        <div id="asset-info-panel"></div>
+        <div class="chart-container">
+          <div class="old-vs-new-header">
+            <div>
+              <p class="chart-section-label">Old money vs new money this episode</p>
+              <p class="chart-section-sub">Average $100 value across each group. Hover to compare.</p>
+            </div>
+            <div class="old-vs-new-legend">
+              <span class="legend-item"><span class="legend-dot" style="background:#e6a817"></span> Old money</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#4a90d9"></span> New money</span>
+            </div>
+          </div>
+          <div id="old-vs-new-chart"></div>
+        </div>
+        <div class="slide-nav">
+          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
+          <div class="slide-dots">
+            <span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <button class="nav-btn next" data-direction="next" type="button">The big picture →</button>
+        </div>
+      </section>
+
+      <!-- Slide 4: Group summary -->
+      <section class="slide" id="slide-4">
+        <div class="slide-label">The big picture</div>
+        <h2 id="slide-4-title">Old money vs new money</h2>
+        <p class="slide-description" id="slide-4-desc"></p>
+        <div class="group-summary" id="group-summary"></div>
+        <div class="slide-nav">
+          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
+          <div class="slide-dots">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span>
+          </div>
+          <button class="nav-btn next" id="explore-long-view-btn" type="button">Follow it forward ↓</button>
+        </div>
+      </section>
+
+      <!-- Slide 5: Quiz -->
+      <section class="slide" id="slide-5">
+        <div class="slide-label">Across all crises</div>
+        <h2>What do you think lasted?</h2>
+        <p class="slide-description">Six market episodes. Every asset. Pick the one you think held up most <em>consistently</em> — then see how they all actually ranked.</p>
+        <div id="slide5-options" class="quiz-options"></div>
+        <button class="reveal-btn" id="reveal-btn" type="button">Show me how they ranked →</button>
+        <div id="quiz-result" class="quiz-result"></div>
+        <div id="quiz-ranking"></div>
+        <div class="slide-nav" style="margin-top:32px">
+          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
+          <div class="slide-dots">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /slideshow -->
+
+    <!-- LONG VIEW SECTION -->
+    <section id="long-view-section" class="deep-section">
+      <div class="long-view-header">
+        <div>
+          <p class="eyebrow">After the episode</p>
+          <h2>Follow the trade beyond one crisis.</h2>
+          <p class="section-copy">This starts at the selected crisis and continues forward. SPY stays locked on as the benchmark. Turn other assets on or off to see what survived into the next market episode.</p>
+        </div>
+        <button id="back-to-selected-trade" class="nav-btn back" type="button">Back to selected trade</button>
+      </div>
+
+      <div class="asset-toggle-panel">
+        <div>
+          <p class="control-label">Assets to show</p>
+          <div id="asset-checkboxes" class="checkbox-ledger"></div>
+        </div>
+        <label class="scale-toggle">
+          <input type="checkbox" id="log-scale-toggle" /> Log scale for extreme assets
+        </label>
+      </div>
+
+      <div class="chart-container large">
+        <div class="chart-title-row">
           <div>
-            <p class="chart-section-label">Old money vs new money this episode</p>
-            <p class="chart-section-sub">Average $100 value across each group</p>
+            <p class="chart-section-label">Long view</p>
+            <h3 id="long-chart-title">From this crisis onward</h3>
           </div>
-          <div class="old-vs-new-legend">
-            <span class="legend-item"><span class="legend-line old"></span> Old money</span>
-            <span class="legend-item"><span class="legend-line new"></span> New money</span>
-          </div>
+          <p class="chart-note">Green bands show crisis windows.</p>
         </div>
-        <div id="old-vs-new-chart"></div>
+        <div id="long-chart" style="min-height:430px;width:100%"></div>
       </div>
-      <div id="longterm-chart-spacer" class="teammate-spacer">
-        <p>[ Long-term line chart: asset vs S&amp;P 500 from episode to today — Person 3 ]</p>
-      </div>
-      <div class="slide-nav">
-        <button class="nav-btn back" data-direction="back">← Back</button>
-        <div class="slide-dots">
-          <div class="dot"></div><div class="dot"></div>
-          <div class="dot active"></div><div class="dot"></div>
+
+      <div class="nav-row-between">
+        <button class="nav-btn back" id="go-market-sheet" type="button">Go to the full market sheet</button>
+        <div style="display:flex;gap:10px">
+          <button class="nav-btn" id="go-to-quiz" type="button">What held up? →</button>
+          <button class="nav-btn next" id="continue-next-crisis" type="button">Continue into next crisis →</button>
         </div>
-        <button class="nav-btn next" data-direction="next">The big picture →</button>
       </div>
-    </div>
+    </section>
 
-    <!-- Slide 4: Group summary -->
-    <div class="slide" id="slide-4">
-      <div class="slide-label">The big picture</div>
-      <h2 id="slide-4-title">Old money vs new money</h2>
-      <p class="slide-description" id="slide-4-desc"></p>
-      <div class="group-summary" id="group-summary"></div>
-      <div class="slide-nav">
-        <button class="nav-btn back" data-direction="back">← Back</button>
-        <div class="slide-dots">
-          <div class="dot"></div><div class="dot"></div>
-          <div class="dot"></div><div class="dot active"></div>
-        </div>
-        <button class="nav-btn next" data-direction="next">Explore more ↓</button>
+    <!-- MARKET SHEET -->
+    <section id="market-sheet-section" class="deep-section sheet-section">
+      <p class="eyebrow">Episode sheet</p>
+      <h2 id="table-title">Every asset in this crisis</h2>
+      <p class="section-copy">All assets ranked by total return for the selected episode.</p>
+      <div class="market-table-wrap">
+        <table id="market-table">
+          <thead>
+            <tr>
+              <th>Asset</th><th>Group</th><th>End value</th>
+              <th>Total return</th><th>Worst drawdown</th><th>Volatility</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-    </div>
+    </section>
 
-  </div>
-
-  <!-- Glossary -->
-  <section id="glossary">
-    <div class="glossary-header">
-      <h2>Know your assets</h2>
-      <p class="glossary-intro">
-        Six market crises. Twelve assets. One question: where would your $100 have been
-        safest? The answer is different every time. Click any card to learn more.
-      </p>
+    <!-- GLOSSARY -->
+    <section id="glossary" class="deep-section">
+      <p class="eyebrow">Know your assets</p>
+      <h2>Every asset in the stress test</h2>
+      <p class="section-copy">Six crises. Twelve assets. One question: where would your $100 have been safest? The answer is different every time. Click any card to learn more.</p>
       <div class="group-filter">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="old">Old Money</button>
-        <button class="filter-btn" data-filter="new">New Money</button>
+        <button class="filter-btn active" data-filter="all" type="button">All</button>
+        <button class="filter-btn" data-filter="old" type="button">Old Money</button>
+        <button class="filter-btn" data-filter="new" type="button">New Money</button>
       </div>
-    </div>
-    <div id="glossary-cards"></div>
-  </section>
+      <div id="glossary-cards" class="glossary-tile-grid"></div>
+    </section>
 
-  <!-- Quiz -->
-  <section id="quiz-section">
-    <div class="quiz-inner">
-      <p class="quiz-kicker">Final question</p>
-      <h2 class="quiz-title">Which asset survived best?</h2>
-      <p class="quiz-copy">
-        Six market crises. Twelve assets. Pick the one you think held up most
-        consistently across every crash and rally, then reveal the answer.
-      </p>
-      <div id="quiz-options" class="quiz-options"></div>
-      <button class="reveal-btn" id="reveal-btn">Reveal answer</button>
-      <div id="quiz-result" class="quiz-result"></div>
-      <div id="quiz-ranking"></div>
-    </div>
-  </section>
+    <!-- PORTFOLIO BUILDER -->
+    <section id="portfolio-builder" class="deep-section">
+      <p class="eyebrow">Build your own</p>
+      <h2>If you'd invested $100 back then…</h2>
+      <p class="section-copy">Pick a starting year, choose your assets, and split your $100 however you want. See how your portfolio would have grown — or shrunk — through every crisis and rally to the end of the data.</p>
 
-  <!-- Modal -->
+      <div class="pb-controls">
+        <div class="pb-year-row">
+          <label class="pb-label">Starting year</label>
+          <div class="pb-year-track">
+            <input type="range" id="pb-year-slider" min="2000" max="2023" value="2007" step="1" />
+            <div class="pb-year-ticks"></div>
+          </div>
+          <span class="pb-year-display" id="pb-year-display">2007</span>
+        </div>
+
+        <div class="pb-asset-section">
+          <label class="pb-label">Select assets <span id="pb-asset-count" class="pb-asset-count">(none selected)</span></label>
+          <div class="pb-asset-pills" id="pb-asset-pills"></div>
+        </div>
+
+        <div class="pb-weights-section" id="pb-weights-section" style="display:none">
+          <label class="pb-label">Allocate your $100</label>
+          <p class="pb-weights-hint">Drag sliders to adjust. Must add up to 100%.</p>
+          <div class="pb-sliders" id="pb-sliders"></div>
+          <div class="pb-allocation-total">
+            Total: <span id="pb-total-pct">0%</span>
+            <span id="pb-total-warn" style="display:none">— must equal 100%</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="pb-chart-area" style="display:none">
+        <div class="pb-chart-header">
+          <span class="chart-section-label">Your portfolio vs S&amp;P 500</span>
+          <div id="pb-legend"></div>
+        </div>
+        <div id="pb-line-chart"></div>
+      </div>
+
+      <div id="pb-best-combo" style="display:none">
+        <p class="pb-label" style="margin-top:28px">Best combination from <span id="pb-best-year">2007</span></p>
+        <div id="pb-best-content"></div>
+      </div>
+    </section>
+
+    <!-- WRITEUP -->
+    <section id="writeup" class="deep-section writeup-section">
+      <p class="eyebrow">Project writeup</p>
+      <h2>About this project</h2>
+      <p>For our project prototype, we have the general structure for our webpage. At the top of the webpage is a hook that contextualizes the topic of our final project and will lead the viewer into learning a bit about finance in a practical manner through exploring how assets perform under different episodes or crises. To execute this, we first have the viewer select a specific asset to explore through visualizing the value of this asset when someone invests $100 on it. Furthermore, this asset is compared to other assets in a bar chart in terms of their return rates for the selected episode to determine how this asset performed relative to other assets.</p>
+      <p>After that, we have the viewer learn about that specific asset they chose from the beginning and discover whether it's an old or new money asset. Then we draw a comparison on how old money and new money assets on average fared off during a specific episode. After exploring this, we then have a section where the user can explore all the individual assets as they please by clicking on the specific asset they want to look at specifically.</p>
+      <p>At the bottom of the webpage, we have a quiz for the viewer to take in order to gauge where they are in learning about our topic and inform them of any misconceptions they may have if they selected the incorrect answer.</p>
+      <p>The most challenging part to tackle for our project's design is definitely the interactivity components. We have to ensure that the interaction doesn't only function properly but that it's effective in the way we are telling a story about our topic. We need to think of the correct interactive components regarding our specific project because there are many ways to go about interactive elements but we have to think of the ones that will best keep our users engaged and fit in with our storytelling or narrative. Furthermore, because interaction is a big part of the exploration aspect of this project, being able to nail the interactivity of our webpage will be crucial so that users can learn and gain insight about our project.</p>
+      <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario.</p>
+    </section>
+  </main>
+
+  <!-- GLOSSARY MODAL -->
   <div id="glossary-modal" class="modal-overlay" aria-hidden="true">
-    <div class="modal-box">
-      <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <button id="modal-close" class="modal-close" aria-label="Close" type="button">✕</button>
       <div id="modal-content"></div>
     </div>
   </div>
 
+  <div id="tooltip" class="tooltip"></div>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="main.js"></script>
 </body>
