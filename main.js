@@ -300,10 +300,6 @@ function initDropdowns() {
 
   // Begin button
   $("begin-btn").addEventListener("click", () => {
-    const meta = episodeMeta.find(d => d.episode === state.episode);
-    const banner = $("episode-banner");
-    banner.textContent = meta ? `${state.episode}: ${meta.story}` : state.episode;
-    banner.classList.add("visible");
     $("slideshow").classList.add("visible");
     goToSlide(1);
     $("slideshow").scrollIntoView({ behavior: "smooth" });
@@ -320,7 +316,7 @@ function initDropdowns() {
     $("slideshow").scrollIntoView({ behavior: "smooth", block: "start" });
   });
   $("go-market-sheet")?.addEventListener("click", () => {
-    $("market-sheet-section")?.scrollIntoView({ behavior: "smooth" });
+    $("glossary")?.scrollIntoView({ behavior: "smooth" });
   });
   $("continue-next-crisis")?.addEventListener("click", continueToNextCrisis);
   $("log-scale-toggle")?.addEventListener("change", e => {
@@ -328,13 +324,7 @@ function initDropdowns() {
     drawLongChart();
   });
 
-  $("go-to-quiz")?.addEventListener("click", () => {
-    $("slideshow").classList.add("visible");
-    goToSlide(5);
-    $("slideshow").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-  window.addEventListener("resize", () => {
+window.addEventListener("resize", () => {
     if (wideData.length) drawLongChart();
   });
 }
@@ -364,7 +354,11 @@ function goToSlide(n, shouldScroll = true) {
 
   // Dots — each slide-dots group just shows the position within the 5-slide set
   document.querySelectorAll(".slide-dots").forEach(group => {
-    group.querySelectorAll(".dot").forEach((dot, i) => dot.classList.toggle("active", i === n - 1));
+    group.querySelectorAll(".dot").forEach((dot, i) => {
+      dot.classList.toggle("active", i === n - 1);
+      dot.style.cursor = "pointer";
+      dot.onclick = () => goToSlide(i + 1);
+    });
   });
 
   if (n === 1) drawInflationChart();
@@ -421,36 +415,40 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
   const W = el.clientWidth || 780, H = 300;
   const margin = { top: 24, right: 52, bottom: 44, left: 58 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
-  const maxYear = expanded ? 2025 : Math.max(...lineData.map(d => d.year));
-  const x = d3.scaleLinear().domain([startYear, maxYear]).range([0, w]);
-  const y = d3.scaleLinear().domain([Math.min(45, d3.min(lineData, d => d.value) - 3), 105]).range([h, 0]);
+
+  const fullMaxYear = fullLine[fullLine.length - 1].year;
+  const initMaxYear = lineData[lineData.length - 1].year;
+  const fullMinVal  = d3.min(fullLine, d => d.value);
+
+  // Two x scales: one for just the episode window, one for full timeline
+  const xInit = d3.scaleLinear().domain([startYear, initMaxYear]).range([0, w]);
+  const xFull = d3.scaleLinear().domain([startYear, fullMaxYear]).range([0, w]);
+  const y     = d3.scaleLinear().domain([Math.min(45, fullMinVal - 3), 105]).range([h, 0]);
+
+  const areaGen = scale => d3.area().x(d => scale(d.year)).y0(h).y1(d => y(d.value)).curve(d3.curveMonotoneX);
+  const lineGen = scale => d3.line().x(d => scale(d.year)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
   d3.select(el).selectAll("*").remove();
-  const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`)
-    .style("cursor", expanded ? "default" : "pointer")
-    .on("click", () => {
-      if (!expanded) {
-        inflationExpanded = true;
-        const hint = $("inflation-hint");
-        if (hint) hint.style.display = "none";
-        _renderInflationChart(fullLine, startYear, years, fullLine, true);
-        updateInflationBlurbToday(startYear);
-      }
-    });
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Episode highlight band
-  const epEnd = Math.min(years.end + 0.9, maxYear);
+  const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
+  const g   = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Clip so the extension line can't peek out before the animation
+  svg.append("defs").append("clipPath").attr("id", "inflation-clip")
+    .append("rect").attr("id", "inflation-clip-rect")
+    .attr("x", 0).attr("y", -10).attr("width", expanded ? w : 0).attr("height", h + 20);
+
+  // Episode highlight band (uses current active scale)
+  const activeX = expanded ? xFull : xInit;
+  const epEnd   = Math.min(years.end + 0.9, initMaxYear);
   g.append("rect")
-    .attr("x", x(years.start)).attr("y", 0)
-    .attr("width", Math.max(4, x(epEnd) - x(years.start))).attr("height", h)
+    .attr("class", "ep-band")
+    .attr("x", activeX(years.start)).attr("y", 0)
+    .attr("width", Math.max(4, activeX(epEnd) - activeX(years.start))).attr("height", h)
     .attr("fill", "#0b6f45").attr("opacity", 0.07);
-  g.append("text").attr("x", x(years.start) + 5).attr("y", 14)
+  g.append("text").attr("class", "ep-label")
+    .attr("x", activeX(years.start) + 5).attr("y", 14)
     .attr("fill", "#0b6f45").attr("font-size", 10).attr("font-weight", 700).text(state.episode);
-
-  // Area fill
-  g.append("path").datum(lineData).attr("fill", "#fff3cd").attr("opacity", 0.5)
-    .attr("d", d3.area().x(d => x(d.year)).y0(h).y1(d => y(d.value)).curve(d3.curveMonotoneX));
 
   // $100 baseline
   g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(100)).attr("y2", y(100))
@@ -458,42 +456,155 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
   g.append("text").attr("x", 4).attr("y", y(100) - 7)
     .attr("fill", "#bbb").attr("font-size", 11).text(`$100 in ${startYear}`);
 
-  // Line
-  const path = g.append("path").datum(lineData).attr("fill", "none")
+  // ── EPISODE portion (area + line) ──
+  const epArea = g.append("path").attr("class", "ep-area")
+    .datum(lineData).attr("fill", "#fff3cd").attr("opacity", 0.5)
+    .attr("d", areaGen(activeX));
+  const epLine = g.append("path").attr("class", "ep-line")
+    .datum(lineData).attr("fill", "none")
     .attr("stroke", "#e6a817").attr("stroke-width", 2.5)
-    .attr("d", d3.line().x(d => x(d.year)).y(d => y(d.value)).curve(d3.curveMonotoneX));
-  animatePath(path, expanded ? 2000 : 1400);
+    .attr("d", lineGen(activeX));
 
-  // End label
-  const last = lineData[lineData.length - 1];
-  g.append("circle").attr("cx", x(last.year)).attr("cy", y(last.value)).attr("r", 4).attr("fill", "#c0392b");
-  g.append("text").attr("x", x(last.year) + 7).attr("y", y(last.value) + 4)
+  // Animate the initial draw
+  if (!expanded) {
+    const len = epLine.node().getTotalLength();
+    epLine.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+      .transition().duration(1400).ease(d3.easeQuadInOut).attr("stroke-dashoffset", 0);
+  }
+
+  // ── EXTENSION portion (area + line beyond episode) — clipped, hidden until click ──
+  const extData = fullLine.filter(d => d.year >= initMaxYear);
+  const extArea = g.append("path").attr("class", "ext-area")
+    .datum(extData).attr("fill", "#fff3cd").attr("opacity", 0.5)
+    .attr("clip-path", "url(#inflation-clip)")
+    .attr("d", areaGen(expanded ? xFull : xInit));
+  const extLine = g.append("path").attr("class", "ext-line")
+    .datum(extData).attr("fill", "none")
+    .attr("stroke", "#e6a817").attr("stroke-width", 2.5)
+    .attr("clip-path", "url(#inflation-clip)")
+    .attr("d", lineGen(expanded ? xFull : xInit));
+
+  // End dot + label
+  const currentLast = expanded ? fullLine[fullLine.length - 1] : lineData[lineData.length - 1];
+  const endDot = g.append("circle").attr("r", 4).attr("fill", "#c0392b")
+    .attr("cx", activeX(currentLast.year)).attr("cy", y(currentLast.value));
+  const endLabel = g.append("text")
+    .attr("x", activeX(currentLast.year) + 7).attr("y", y(currentLast.value) + 4)
     .attr("fill", "#c0392b").attr("font-size", 13).attr("font-weight", 700)
-    .text(`$${last.value}`);
+    .text(`$${currentLast.value}`);
 
   // Axes
-  g.append("g").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).tickFormat(d3.format("d")).ticks(Math.min(7, lineData.length)));
+  const xAxisG = g.append("g").attr("transform", `translate(0,${h})`);
+  xAxisG.call(d3.axisBottom(activeX).tickFormat(d3.format("d")).ticks(6));
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`));
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
-    .attr("x", -h / 2).attr("y", -44).attr("text-anchor", "middle").text("Purchasing power of original $100");
+    .attr("x", -h / 2).attr("y", -44).attr("text-anchor", "middle")
+    .text("Purchasing power of original $100");
 
   // Hover tooltip
-  const tooltip = d3.select("#tooltip");
+  const tooltip  = d3.select("#tooltip");
   const hoverDot = g.append("circle").attr("r", 5).attr("fill", "#e6a817")
     .attr("stroke", "white").attr("stroke-width", 2).style("opacity", 0);
-  const bisect = d3.bisector(d => d.year).left;
-  g.append("rect").attr("width", w).attr("height", h).attr("fill", "none").attr("pointer-events", "all")
+  const bisect   = d3.bisector(d => d.year).left;
+
+  g.append("rect").attr("width", w).attr("height", h)
+    .attr("fill", "none").attr("pointer-events", "all")
     .on("mousemove", function(event) {
-      const [mx] = d3.pointer(event);
-      const yr = x.invert(mx);
-      const i = Math.min(bisect(lineData, yr), lineData.length - 1);
-      const d = lineData[i];
-      hoverDot.attr("cx", x(d.year)).attr("cy", y(d.value)).style("opacity", 1);
+      const scale = inflationExpanded ? xFull : xInit;
+      const data  = inflationExpanded ? fullLine : lineData;
+      const [mx]  = d3.pointer(event);
+      const yr    = scale.invert(mx);
+      const i     = Math.min(bisect(data, yr), data.length - 1);
+      const d     = data[i];
+      hoverDot.attr("cx", scale(d.year)).attr("cy", y(d.value)).style("opacity", 1);
       tooltip.style("opacity", 1)
         .style("left", (event.clientX + 14) + "px").style("top", (event.clientY - 48) + "px")
         .html(`<b>${d.year}</b><br/>$100 from ${startYear}<br/>is worth <b>$${d.value}</b>`);
     })
     .on("mouseleave", () => { hoverDot.style("opacity", 0); tooltip.style("opacity", 0); });
+
+  // ── CLICK: entire container, rescale x and reveal extension ──
+  if (!expanded) {
+    const container = el.closest(".chart-container") || el;
+    container.style.cursor = "pointer";
+
+    const handleClick = () => {
+      inflationExpanded = true;
+      container.style.cursor = "default";
+      container.removeEventListener("click", handleClick);
+
+      const hint = $("inflation-hint");
+      if (hint) hint.style.display = "none";
+
+      const DURATION = 4500;
+      const ease     = d3.easeLinear;
+      const lastFull = fullLine[fullLine.length - 1];
+
+      // 1. Rescale episode portion to compressed xFull positions
+      epArea.transition().duration(DURATION).ease(ease).attr("d", areaGen(xFull));
+      epLine.transition().duration(DURATION).ease(ease).attr("d", lineGen(xFull));
+
+      // 2. Rescale extension paths to xFull too
+      extArea.transition().duration(DURATION).ease(ease).attr("d", areaGen(xFull));
+      extLine.transition().duration(DURATION).ease(ease).attr("d", lineGen(xFull));
+
+      // 3. Expand clip to reveal the extension as xFull takes hold
+      d3.select("#inflation-clip-rect")
+        .transition().duration(DURATION).ease(ease).attr("width", w);
+
+      // 4. Rescale x axis
+      xAxisG.transition().duration(DURATION).ease(ease)
+        .call(d3.axisBottom(xFull).tickFormat(d3.format("d")).ticks(8));
+
+      // 5. Move episode band + label to compressed position
+      g.select(".ep-band")
+        .transition().duration(DURATION).ease(ease)
+        .attr("x", xFull(years.start))
+        .attr("width", Math.max(4, xFull(epEnd) - xFull(years.start)));
+      g.select(".ep-label")
+        .transition().duration(DURATION).ease(ease)
+        .attr("x", xFull(years.start) + 5);
+
+      // 6. Dot sits exactly at the clip boundary pixel, y read from the actual line path
+      const bisectYr   = d3.bisector(d => d.year).left;
+      const initClipPx = xFull(initMaxYear);
+      const lineNode   = extLine.node();
+      const epLineNode = epLine.node();
+      d3.timer(elapsed => {
+        const t      = Math.min(elapsed / DURATION, 1);
+        const clipPx = initClipPx + t * (w - initClipPx);
+        // Sample y directly from the SVG path at this x pixel
+        let cy;
+        try {
+          // Walk the path to find the y at clipPx
+          const totalLen = lineNode.getTotalLength();
+          let lo = 0, hi = totalLen, pt;
+          for (let iter = 0; iter < 24; iter++) {
+            const mid = (lo + hi) / 2;
+            pt = lineNode.getPointAtLength(mid);
+            if (pt.x < clipPx) lo = mid; else hi = mid;
+          }
+          cy = lineNode.getPointAtLength((lo + hi) / 2).y;
+        } catch(e) {
+          // fallback: use xFull invert + y scale
+          const visYear = xFull.invert(clipPx);
+          const i = Math.min(bisectYr(fullLine, visYear), fullLine.length - 1);
+          cy = y(fullLine[i].value);
+        }
+        // label: invert y to get value
+        const visYear = xFull.invert(clipPx);
+        const i = Math.min(bisectYr(fullLine, visYear), fullLine.length - 1);
+        const val = fullLine[i].value;
+        endDot.attr("cx", clipPx).attr("cy", cy).style("opacity", 1);
+        endLabel.attr("x", clipPx + 7).attr("y", cy + 4)
+          .text(`$${val}`).style("opacity", 1);
+        if (t >= 1) return true;
+      });
+
+      updateInflationBlurbToday(startYear);
+    };
+    container.addEventListener("click", handleClick);
+  }
 }
 
 function updateInflationBlurbToday(startYear) {
@@ -512,7 +623,6 @@ function drawMainChart() {
   const spy = crisisData.filter(d => d.episode === state.episode && d.asset_name === "S&P 500").sort((a,b) => a.date - b.date);
   const meta = episodeMeta.find(d => d.episode === state.episode);
   $("slide-2-title").textContent = `$100 in ${state.asset} during the ${state.episode}`;
-  $("slide-2-desc").textContent = meta ? meta.story : "";
 
   const el = $("main-chart");
   d3.select(el).selectAll("*").remove();
@@ -990,17 +1100,26 @@ function drawLongChart() {
     .defined(d => Number.isFinite(d.value) && d.value > 0)
     .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
-  // Color palette
-  const palette = ["#2a9d5c", "#bbb", "#4a90d9", "#e6a817", "#d9534f", "#8e44ad", "#e67e22", "#1abc9c", "#c0392b", "#2980b9", "#f39c12", "#7f8c8d"];
-  let colorIdx = 0;
+  // Consistent per-asset colors (same asset = same color every time)
+  const ASSET_COLORS = {
+    "S&P 500":         "#888",
+    "Gold":            "#e6a817",
+    "Financials":      "#e67e22",
+    "Regional Banks":  "#c0392b",
+    "Energy":          "#f39c12",
+    "Utilities":       "#7f8c8d",
+    "Long Bonds":      "#2980b9",
+    "Nasdaq 100":      "#4a90d9",
+    "Technology":      "#1abc9c",
+    "Semiconductors":  "#8e44ad",
+    "Innovation Stocks":"#d9534f",
+    "Bitcoin":         "#2a9d5c",
+  };
 
   series.forEach(s => {
     const isSpy = s.name === "S&P 500";
     const isSelected = s.name === state.asset;
-    let color;
-    if (isSpy) color = "#888";
-    else if (isSelected) color = "#2a9d5c";
-    else { color = palette[colorIdx % palette.length]; colorIdx++; }
+    const color = isSelected && !isSpy ? "#2a9d5c" : (ASSET_COLORS[s.name] || "#999");
 
     const path = g.append("path").datum(s.values)
       .attr("fill", "none")
@@ -1020,9 +1139,10 @@ function drawLongChart() {
       .on("end", () => { if (isSpy) path.attr("stroke-dasharray", "6 3"); });
 
     const last = s.values[s.values.length - 1];
+    const ticker = ASSET_INFO[s.name]?.ticker || s.name;
     g.append("text").attr("x", x(last.date) + 6).attr("y", y(last.value) + 4)
       .attr("fill", color).attr("font-size", 11).attr("font-weight", 700)
-      .text(`${s.ticker} ${fmtDollar(last.value)}`);
+      .text(`${ticker} ${fmtDollar(last.value)}`);
   });
 
   // Axes
@@ -1074,23 +1194,9 @@ function continueToNextCrisis() {
   $("long-view-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// ── MARKET TABLE ──────────────────────────────────────────────────────────────
+// ── MARKET TABLE (removed from page; function kept as no-op to avoid errors) ──
 function renderTable() {
-  const tbody = d3.select("#market-table tbody");
-  if (tbody.empty()) return;
-  const rows = summaryData.filter(d => d.episode === state.episode)
-    .sort((a, b) => b.total_return_pct - a.total_return_pct);
-  const titleEl = $("table-title");
-  if (titleEl) titleEl.textContent = `Every asset in the ${state.episode}`;
-  tbody.html("");
-  tbody.selectAll("tr").data(rows).join("tr")
-    .html(d => `
-      <td><b>${d.ticker}</b> ${d.asset_name}</td>
-      <td>${d.group}</td>
-      <td class="td-right">${fmtMoney(d.end_value)}</td>
-      <td class="td-right ${d.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(d.total_return_pct)}</td>
-      <td class="td-right neg">${fmtPct(d.max_drawdown)}</td>
-      <td class="td-right">${d3.format(".1f")(d.volatility_pct)}%</td>`);
+  // Market sheet section removed — data now lives in "Know your assets" glossary cards
 }
 
 // ── GLOSSARY ──────────────────────────────────────────────────────────────────

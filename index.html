@@ -36,8 +36,6 @@
       </div>
     </section>
 
-    <div id="episode-banner"></div>
-
     <!-- SLIDESHOW -->
     <div id="slideshow">
 
@@ -62,7 +60,6 @@
       <section class="slide" id="slide-2">
         <div class="slide-label">The selected trade</div>
         <h2 id="slide-2-title">Loading...</h2>
-        <p class="slide-description" id="slide-2-desc"></p>
         <div class="chart-container large">
           <div class="chart-caption-row">
             <span class="legend-item"><i class="line-swatch selected"></i> Selected asset</span>
@@ -121,7 +118,7 @@
           <div class="slide-dots">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span>
           </div>
-          <button class="nav-btn next" id="explore-long-view-btn" type="button">Follow it forward ↓</button>
+          <button class="nav-btn next" data-direction="next" type="button">One last question →</button>
         </div>
       </section>
 
@@ -139,6 +136,7 @@
           <div class="slide-dots">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span>
           </div>
+          <button class="nav-btn next" id="explore-long-view-btn" type="button">Follow it forward ↓</button>
         </div>
       </section>
 
@@ -177,31 +175,12 @@
       </div>
 
       <div class="nav-row-between">
-        <button class="nav-btn back" id="go-market-sheet" type="button">Go to the full market sheet</button>
-        <div style="display:flex;gap:10px">
-          <button class="nav-btn" id="go-to-quiz" type="button">What held up? →</button>
-          <button class="nav-btn next" id="continue-next-crisis" type="button">Continue into next crisis →</button>
-        </div>
+        <button class="nav-btn back" id="go-market-sheet" type="button">Know your assets ↓</button>
+        <button class="nav-btn next" id="continue-next-crisis" type="button">Continue into next crisis →</button>
       </div>
     </section>
 
-    <!-- MARKET SHEET -->
-    <section id="market-sheet-section" class="deep-section sheet-section">
-      <p class="eyebrow">Episode sheet</p>
-      <h2 id="table-title">Every asset in this crisis</h2>
-      <p class="section-copy">All assets ranked by total return for the selected episode.</p>
-      <div class="market-table-wrap">
-        <table id="market-table">
-          <thead>
-            <tr>
-              <th>Asset</th><th>Group</th><th>End value</th>
-              <th>Total return</th><th>Worst drawdown</th><th>Volatility</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+
 
     <!-- GLOSSARY -->
     <section id="glossary" class="deep-section">
