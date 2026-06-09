@@ -567,3 +567,82 @@ input#pb-year-slider::-webkit-slider-thumb { appearance:none; width:20px; height
   background: #f4f4f4;
 }
 
+/* Market sheet: row-based Wall Street style */
+#glossary .market-table-wrap {
+  background: #fffdf8;
+  border: 1px solid #111;
+  padding: 24px;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.asset-guide-table {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.asset-guide-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+  font-size: 0.95rem;
+}
+
+.asset-guide-table th {
+  font-family: "Courier New", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #333;
+  padding: 12px 8px;
+  border-bottom: 1.5px solid #111;
+}
+
+.asset-guide-table td {
+  padding: 14px 8px;
+  border-bottom: 1px solid #d7d2c8;
+  vertical-align: middle;
+}
+
+.asset-guide-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.asset-guide-row:hover {
+  background: #e9f1ea;
+}
+
+.asset-guide-row td:first-child {
+  font-weight: 700;
+}
+
+.asset-guide-row .row-action {
+  color: #0b6f45;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.asset-guide-row:hover .row-action {
+  text-decoration: underline;
+}
+
+.data-status.missing {
+  color: #777;
+  font-size: 0.82rem;
+}
+
+.data-status.partial {
+  color: #8a5a00;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.asset-guide-row.base-row:hover,
+.asset-guide-row.old-row:hover,
+.asset-guide-row.new-row:hover {
+  background: #e9f1ea;
+}
