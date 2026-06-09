@@ -14,11 +14,11 @@
     <!-- HERO -->
     <section id="hero" class="hero-section">
       <div class="hero-intro">
-        <p class="intro-text">Your grandparents trusted gold and bonds. Your generation grew up hearing about Bitcoin and semiconductors. But when markets break, which type of wealth actually holds up? The answer changes every time.</p>
+        <p class="intro-text">People call gold safe, tech risky, and Bitcoin digital gold. This project puts those labels under stress: old money versus new money, tested across real market crises.</p>
       </div>
       <p class="eyebrow center">Old money vs new money</p>
       <h1>Who Wins When<br />Markets Break?</h1>
-      <p class="market-crisis-def">A market crisis is a period when investors suddenly reprice risk. It can come from a recession, inflation, bank failures, a pandemic, or a bubble bursting. It does not mean every asset falls. It means the usual story gets tested.</p>
+      <p class="market-crisis-def">A market crisis is when investors suddenly change what they trust. Some assets crash, some survive, and a few unexpectedly win.</p>
       <div class="selectors">
         <div class="selector-row">
           <div class="selector-group">
@@ -30,9 +30,9 @@
             <select id="asset-dropdown"></select>
           </div>
         </div>
-        <button class="begin-btn" id="shuffle-assets-btn" type="button">Shuffle assets</button>
+        <button class="begin-btn" id="shuffle-assets-btn" type="button">Shuffle asset list</button>
         <button class="begin-btn primary" id="begin-btn" type="button">See what happened →</button>
-        <p class="small-note">SPY is always used as the market benchmark.</p>
+        <p class="small-note">SPY stays on as the S&P 500 benchmark.</p>
       </div>
     </section>
 
@@ -42,7 +42,7 @@
       <!-- Slide 1: Inflation -->
       <section class="slide active" id="slide-1">
         <div class="slide-label">Before the trade</div>
-        <h2>Cash has a quiet benchmark too.</h2>
+        <h2>Cash is not neutral.</h2>
         <p class="slide-description" id="inflation-blurb"></p>
         <div class="chart-container large">
           <div id="inflation-chart"></div>
@@ -63,13 +63,13 @@
         <div class="chart-container large">
           <div class="chart-caption-row">
             <span class="legend-item"><i class="line-swatch selected"></i> Selected asset</span>
-            <span class="legend-item"><i class="line-swatch benchmark"></i> SPY benchmark</span>
+            <span class="legend-item"><i class="line-swatch benchmark"></i> SPY / S&P 500 benchmark</span>
           </div>
           <div id="main-chart"></div>
         </div>
         <div class="chart-container">
-          <p class="chart-section-label">How every asset performed this episode</p>
-          <p class="chart-note">Hover any bar for details. Your selected asset is highlighted.</p>
+          <p class="chart-section-label">How every asset finished this episode</p>
+          <p class="chart-note">Hover any bar for details. The selected asset is outlined.</p>
           <div id="bar-chart"></div>
         </div>
         <div class="slide-nav">
@@ -89,11 +89,11 @@
           <div class="old-vs-new-header">
             <div>
               <p class="chart-section-label">Old money vs new money this episode</p>
-              <p class="chart-section-sub">Average $100 value across each group. Hover to compare.</p>
+              <p class="chart-section-sub">Average value of a $100 investment for each group. Hover to compare.</p>
             </div>
             <div class="old-vs-new-legend">
-              <span class="legend-item"><span class="legend-dot" style="background:#e6a817"></span> Old money</span>
-              <span class="legend-item"><span class="legend-dot" style="background:#4a90d9"></span> New money</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#666c70"></span> Old money</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#0b6f45"></span> New money</span>
             </div>
           </div>
           <div id="old-vs-new-chart"></div>
@@ -118,15 +118,15 @@
           <div class="slide-dots">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span>
           </div>
-          <button class="nav-btn next" data-direction="next" type="button">One last question →</button>
+          <button class="nav-btn next" data-direction="next" type="button">Test your instinct →</button>
         </div>
       </section>
 
       <!-- Slide 5: Quiz -->
       <section class="slide" id="slide-5">
         <div class="slide-label">Across all crises</div>
-        <h2>What do you think lasted?</h2>
-        <p class="slide-description">Six market episodes. Every asset. Pick the one you think held up most <em>consistently</em> — then see how they all actually ranked.</p>
+        <h2>Which asset held up most often?</h2>
+        <p class="slide-description">Six market episodes, one consistency test. Pick the asset you think finished positive most often.</p>
         <div id="slide5-options" class="quiz-options"></div>
         <button class="reveal-btn" id="reveal-btn" type="button">Show me how they ranked →</button>
         <div id="quiz-result" class="quiz-result"></div>
@@ -147,8 +147,8 @@
       <div class="long-view-header">
         <div>
           <p class="eyebrow">After the episode</p>
-          <h2>Follow the trade beyond one crisis.</h2>
-          <p class="section-copy">This starts at the selected crisis and continues forward. SPY stays locked on as the benchmark. Turn other assets on or off to see what survived into the next market episode.</p>
+          <h2>Follow the trade beyond one episode.</h2>
+          <p class="section-copy">This starts at the selected episode and follows the assets forward. SPY stays locked on as the benchmark. The green bands mark crisis windows, and the date axis uses spaced quarterly-style ticks so the long view stays readable.</p>
         </div>
         <button id="back-to-selected-trade" class="nav-btn back" type="button">Back to selected trade</button>
       </div>
@@ -175,7 +175,7 @@
       </div>
 
       <div class="nav-row-between">
-        <button class="nav-btn back" id="go-market-sheet" type="button">Know your assets ↓</button>
+        <button class="nav-btn back" id="go-market-sheet" type="button">Open market sheet ↓</button>
         <button class="nav-btn next" id="continue-next-crisis" type="button">Continue into next crisis →</button>
       </div>
     </section>
@@ -185,21 +185,21 @@
     <!-- GLOSSARY -->
     <section id="glossary" class="deep-section">
       <p class="eyebrow">Know your assets</p>
-      <h2>Every asset in the stress test</h2>
-      <p class="section-copy">Six crises. Twelve assets. One question: where would your $100 have been safest? The answer is different every time. Click any card to learn more.</p>
+      <h2>Market sheet: every asset in the stress test</h2>
+      <p class="section-copy">This is the clickable asset guide. Each row gives the role of the asset, its return in the selected episode, and a plain-English preview. Click a row for deeper notes by crisis.</p>
       <div class="group-filter">
         <button class="filter-btn active" data-filter="all" type="button">All</button>
         <button class="filter-btn" data-filter="old" type="button">Old Money</button>
         <button class="filter-btn" data-filter="new" type="button">New Money</button>
       </div>
-      <div id="glossary-cards" class="glossary-tile-grid"></div>
+      <div id="glossary-cards" class="market-table-wrap"></div>
     </section>
 
     <!-- PORTFOLIO BUILDER -->
     <section id="portfolio-builder" class="deep-section">
       <p class="eyebrow">Build your own</p>
-      <h2>If you'd invested $100 back then…</h2>
-      <p class="section-copy">Pick a starting year, choose your assets, and split your $100 however you want. See how your portfolio would have grown — or shrunk — through every crisis and rally to the end of the data.</p>
+      <h2>Build your own $100 portfolio</h2>
+      <p class="section-copy">Choose a starting year, pick assets, and split a hypothetical $100. Then compare your portfolio directly against the S&P 500 benchmark.</p>
 
       <div class="pb-controls">
         <div class="pb-year-row">
@@ -256,7 +256,7 @@
   <!-- GLOSSARY MODAL -->
   <div id="glossary-modal" class="modal-overlay" aria-hidden="true">
     <div class="modal-panel" role="dialog" aria-modal="true">
-      <button id="modal-close" class="modal-close" aria-label="Close" type="button">✕</button>
+      <button id="modal-close" class="modal-close" aria-label="Close" type="button">×</button>
       <div id="modal-content"></div>
     </div>
   </div>

@@ -58,7 +58,7 @@ const ASSET_INFO = {
   },
   "Nasdaq 100": {
     ticker: "QQQ", group: "New money",
-    description: "The 100 largest non-financial companies listed on the Nasdaq exchange, heavily weighted toward tech giants like Apple, Microsoft, and Alphabet. It moves fast in both directions — huge gains in tech booms, sharp drops when valuations get questioned or rates rise.",
+    description: "The 100 largest non-financial companies listed on the Nasdaq exchange, heavily weighted toward tech giants like Apple, Microsoft, and Alphabet. It matters here because QQQ is one of the clearest tradable proxies for the tech-heavy new-money story, from the dot-com crash to the AI rally. It moves fast in both directions — huge gains in tech booms, sharp drops when valuations get questioned or rates rise.",
     example: "Apple, Microsoft, Nvidia, Amazon, and other large growth companies drive much of this index.",
   },
   "Technology": {
@@ -84,17 +84,143 @@ const ASSET_INFO = {
 };
 
 const GROUP_EXPLAINER = {
-  "Old money": "Old money assets are traditional, time-tested investments — gold, banks, bonds, utilities. Often considered safer, but that depends entirely on the type of crisis.",
-  "New money": "New money assets are modern, high-growth investments — tech stocks, semiconductors, crypto. They boom when optimism runs high and crash hard when conditions tighten.",
+  "Old money": "Old money assets are traditional, time-tested investments: gold, banks, bonds, utilities, and energy. They are often treated as safer because they are tied to older systems of wealth, but each crisis tests that reputation differently.",
+  "New money": "New money assets are tied to modern growth stories: technology, semiconductors, innovation stocks, and crypto. They can run far ahead when optimism is high, but they can fall hard when investors stop paying for future growth.",
 };
 
+const ASSET_ORDER = [
+  "Gold", "Financials", "Regional Banks", "Energy", "Utilities", "Long Bonds",
+  "Nasdaq 100", "Technology", "Semiconductors", "Innovation Stocks", "Bitcoin"
+];
+
+const ASSET_DISPLAY_NAMES = {
+  "S&P 500": "SPY — S&P 500 benchmark",
+  "Gold": "GLD — Gold",
+  "Financials": "XLF — Financials",
+  "Regional Banks": "KRE — Regional Banks",
+  "Energy": "XLE — Energy",
+  "Utilities": "XLU — Utilities",
+  "Long Bonds": "TLT — Long-term Treasury bonds",
+  "Nasdaq 100": "QQQ — tech-heavy Nasdaq ETF",
+  "Technology": "XLK — Technology",
+  "Semiconductors": "SMH — Semiconductors",
+  "Innovation Stocks": "ARKK — Innovation stocks",
+  "Bitcoin": "BTC-USD — Bitcoin",
+};
+
+const ASSET_AVAILABILITY_NOTES = {
+  "Gold": "Gold existed during older crises, but this project uses GLD as the tradable gold ETF proxy. GLD starts on Nov. 18, 2004, after the Dot-Com Crash ended.",
+  "Regional Banks": "Regional banks existed, but this project uses KRE as the tradable regional-bank ETF proxy. KRE starts on Jun. 22, 2006, after the Dot-Com Crash ended.",
+  "Innovation Stocks": "The ARKK innovation ETF starts on Oct. 31, 2014, so it cannot represent the Dot-Com Crash or the 2008 crisis in this dataset.",
+  "Bitcoin": "Bitcoin was launched in 2009. The BTC-USD price series in this dataset begins on Sep. 17, 2014, so it cannot appear in Dot-Com or the 2008 crisis.",
+  "Long Bonds": "TLT starts on Jul. 30, 2002, so its Dot-Com result only covers the last part of the episode.",
+  "Semiconductors": "SMH starts on Jun. 5, 2000, so its Dot-Com result begins after the episode had already started."
+};
+
+const ASSET_COLORS = {
+  "S&P 500": "#111111",
+  "Gold": "#6f7378",
+  "Financials": "#8a8f94",
+  "Regional Banks": "#a3a6aa",
+  "Energy": "#4c5257",
+  "Utilities": "#7b8085",
+  "Long Bonds": "#565d63",
+  "Nasdaq 100": "#0b6f45",
+  "Technology": "#178a59",
+  "Semiconductors": "#2a9d6c",
+  "Innovation Stocks": "#3f7f62",
+  "Bitcoin": "#0f5f3d",
+};
+
+const SELECTED_ASSET_COLOR = "#0b6f45";
+const OLD_MONEY_COLOR = "#666c70";
+const NEW_MONEY_COLOR = "#0b6f45";
+const BENCHMARK_COLOR = "#111111";
+
+function assetLabel(name) {
+  return ASSET_DISPLAY_NAMES[name] || name;
+}
+
+function availableAssetsForEpisode(episode) {
+  const have = new Set(crisisData.filter(d => d.episode === episode && d.asset_name !== "S&P 500").map(d => d.asset_name));
+  return ASSET_ORDER.filter(a => have.has(a));
+}
+
+function allStressTestAssets() {
+  const have = new Set(crisisData.filter(d => d.asset_name !== "S&P 500").map(d => d.asset_name));
+  return ASSET_ORDER.filter(a => have.has(a));
+}
+
+function rowFor(assetName, episode) {
+  return summaryData.find(d => d.episode === episode && d.asset_name === assetName);
+}
+
+function assetEarliestYearFromData(assetName) {
+  const rows = crisisData.filter(d => d.asset_name === assetName).sort((a,b) => a.date - b.date);
+  return rows.length ? rows[0].date.getFullYear() : null;
+}
+
+function fmtShortDate(date) {
+  if (!date || isNaN(date)) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function episodeDates(episode) {
+  const ep = episodeMeta.find(d => d.episode === episode);
+  return ep ? { start: new Date(ep.start), end: new Date(ep.end) } : null;
+}
+
+function firstWideDateForAsset(assetName) {
+  const ticker = getTicker(assetName);
+  if (!ticker || !wideData.length) return null;
+  const first = wideData.find(d => Number.isFinite(d[ticker]));
+  return first ? first.date : null;
+}
+
+function availabilityStatus(assetName, episode) {
+  const row = rowFor(assetName, episode);
+  const dates = episodeDates(episode);
+  const first = firstWideDateForAsset(assetName);
+  if (!dates || !first) return row ? { kind: "full" } : { kind: "missing", short: "Not available", detail: ASSET_AVAILABILITY_NOTES[assetName] || "This asset does not have a usable price series for this episode." };
+
+  if (!row && first > dates.end) {
+    return {
+      kind: "missing",
+      short: assetName === "Bitcoin" ? "Not created / not tracked yet" : "ETF not trading yet",
+      detail: ASSET_AVAILABILITY_NOTES[assetName] || `${assetLabel(assetName)} starts on ${fmtShortDate(first)}, after ${episode} ended.`
+    };
+  }
+  if (!row && first > dates.start) {
+    return {
+      kind: "missing",
+      short: "No full-crisis data",
+      detail: ASSET_AVAILABILITY_NOTES[assetName] || `${assetLabel(assetName)} starts on ${fmtShortDate(first)}, after ${episode} began.`
+    };
+  }
+  if (!row) {
+    return {
+      kind: "missing",
+      short: "No data in file",
+      detail: ASSET_AVAILABILITY_NOTES[assetName] || "This asset is missing from the summary file for this episode."
+    };
+  }
+  if (first > dates.start) {
+    return {
+      kind: "partial",
+      short: "Partial episode",
+      detail: ASSET_AVAILABILITY_NOTES[assetName] || `${assetLabel(assetName)} starts on ${fmtShortDate(first)}, so this result does not cover the full episode.`
+    };
+  }
+  return { kind: "full" };
+}
+
 const EPISODE_CONTEXT = {
-  "Dot-Com Crash":           { dates: "2000–2002", summary: "The internet bubble burst after investors paid extreme prices for early web companies. Tech fell much harder than the overall market, while some traditional assets held up better.", keyFact: "A clean example where the new-money story failed first." },
-  "Global Financial Crisis": { dates: "2007–2009", summary: "The housing and credit system broke. Banks, mortgages, and credit markets became the center of the crisis, so financial assets were hit directly.", keyFact: "A crisis where old-money finance was the fragile area." },
-  "COVID Crash":             { dates: "2020",      summary: "The pandemic caused a sudden shutdown and the market fell quickly. Then stimulus and low rates helped many assets recover fast, especially tech.", keyFact: "A crash can be short but still violent." },
-  "2022 Inflation Shock":    { dates: "2022",      summary: "Inflation and rising interest rates changed the rules. Growth stocks fell, long bonds fell, and energy became one of the few major winners.", keyFact: "This period shows why bonds are not automatically safe when rates rise." },
-  "Regional Banking Crisis": { dates: "2023",      summary: "Several regional banks failed or came under stress. Large tech and Bitcoin held up better than the banks directly tied to the panic.", keyFact: "This crisis was narrow, but very painful for regional banks." },
-  "AI Rally":                { dates: "2023–2024", summary: "AI optimism pushed semiconductors and large tech much higher. The market looked strong, but the gains were concentrated in a few modern-growth assets.", keyFact: "Not a crash — an episode where new money clearly dominated." },
+  "Dot-Com Crash":           { dates: "2000–2002", summary: "The internet bubble was the stress test for early tech optimism. Companies with big stories and weak profits were suddenly repriced, so new-money assets were hit much harder than traditional sectors.", keyFact: "A crisis where the new-money story broke first." },
+  "Global Financial Crisis": { dates: "2007–2009", summary: "The housing and credit system cracked. Banks, mortgage exposure, and financial leverage became the weak points, so this crisis tested old-money finance more directly.", keyFact: "A reminder that traditional finance can be the fragile part too." },
+  "COVID Crash":             { dates: "2020",      summary: "COVID created a fast market panic, then a fast recovery. Lockdowns hurt the whole market at first, but stimulus, low rates, and remote work helped tech recover quickly.", keyFact: "A crash can be short and still violent." },
+  "2022 Inflation Shock":    { dates: "2022",      summary: "Inflation and rising rates changed the rules. Growth stocks fell, long bonds fell, and energy became one of the few areas that actually benefited.", keyFact: "This is the clearest example of why bonds are not automatically safe." },
+  "Regional Banking Crisis": { dates: "2023",      summary: "A narrow but sharp panic hit smaller banks after Silicon Valley Bank failed. Regional banks carried the stress, while large tech and Bitcoin held up better.", keyFact: "A crisis can be very painful for one corner of the market without breaking everything else." },
+  "AI Rally":                { dates: "2023–2024", summary: "AI optimism pushed semiconductors and large technology stocks higher. The market looked strong, but much of the gain came from a narrow new-money theme.", keyFact: "Not a crash: a period where new money dominated." },
 };
 
 const EPISODE_TAKEAWAYS = {
@@ -191,7 +317,7 @@ let episodeMeta = [];
 let wideData    = [];
 let checkedAssets = new Set(["S&P 500"]);
 let useLogScale   = false;
-let state = { episode: "Dot-Com Crash", asset: "Gold", currentSlide: 1, selectedQuiz: null };
+let state = { episode: "Dot-Com Crash", asset: "Nasdaq 100", currentSlide: 1, selectedQuiz: null };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -256,8 +382,41 @@ Promise.all([
 });
 
 // ── DROPDOWNS ─────────────────────────────────────────────────────────────────
+
+function assetDropdownNote(assetName, episode) {
+  const status = availabilityStatus(assetName, episode);
+  if (status.kind === "full") return "";
+  if (status.kind === "partial") return " (partial episode)";
+  if (assetName === "Bitcoin") return " (launched 2009; data starts 2014)";
+  if (assetName === "Gold") return " (GLD starts 2004)";
+  if (assetName === "Regional Banks") return " (KRE starts 2006)";
+  if (assetName === "Innovation Stocks") return " (ARKK starts 2014)";
+  return ` (${status.short || "not available"})`;
+}
+
+function dropdownAssetsForEpisode() {
+  // Keep the full project asset list visible so missing history reads as context, not a broken menu.
+  // Missing assets are disabled and greyed out instead of disappearing.
+  return ASSET_ORDER.filter(a => ASSET_INFO[a]);
+}
+
+function refreshAssetDropdown() {
+  const assetDd = d3.select("#asset-dropdown");
+  if (assetDd.empty()) return;
+  const options = dropdownAssetsForEpisode();
+  const selectable = options.filter(a => availabilityStatus(a, state.episode).kind !== "missing");
+  if (!selectable.includes(state.asset)) state.asset = selectable[0] || options[0] || "Nasdaq 100";
+
+  assetDd.selectAll("option").data(options, d => d).join("option")
+    .attr("value", d => d)
+    .attr("disabled", d => availabilityStatus(d, state.episode).kind === "missing" ? true : null)
+    .attr("data-status", d => availabilityStatus(d, state.episode).kind)
+    .text(d => assetLabel(d) + assetDropdownNote(d, state.episode));
+
+  assetDd.property("value", state.asset);
+}
+
 function initDropdowns() {
-  // Episode dropdown
   const epDd = d3.select("#episode-dropdown");
   epDd.selectAll("option").data(episodeMeta).join("option")
     .attr("value", d => d.episode)
@@ -267,9 +426,16 @@ function initDropdowns() {
       return d.episode;
     });
   epDd.property("value", state.episode);
+
+  function populateAssetDropdown() {
+    refreshAssetDropdown();
+  }
+
+  populateAssetDropdown();
+
   epDd.on("change", function() {
     state.episode = this.value;
-    ensureAssetAvailable();
+    populateAssetDropdown();
     updateInflationBlurb();
     drawInflationChart();
     if ($("slideshow").classList.contains("visible")) goToSlide(state.currentSlide, false);
@@ -277,35 +443,29 @@ function initDropdowns() {
     renderTable();
   });
 
-  // Asset dropdown
-  const allAssets = [...new Set(crisisData.map(d => d.asset_name))].filter(a => a !== "S&P 500").sort();
-  state.asset = allAssets.includes("Gold") ? "Gold" : allAssets[0];
-  const assetDd = d3.select("#asset-dropdown");
-  assetDd.selectAll("option").data(allAssets).join("option")
-    .attr("value", d => d).text(d => `${getTicker(d)} ${d}`);
-  assetDd.property("value", state.asset);
-  assetDd.on("change", function() {
+  d3.select("#asset-dropdown").on("change", function() {
     state.asset = this.value;
+    checkedAssets.add("S&P 500");
+    checkedAssets.add(state.asset);
     if ($("slideshow").classList.contains("visible")) goToSlide(state.currentSlide, false);
+    renderLongViewSection();
   });
 
-  // Shuffle
   $("shuffle-assets-btn")?.addEventListener("click", () => {
-    const opts = [...assetDd.node().options];
+    const assetDd = $("asset-dropdown");
+    const opts = [...assetDd.options];
     for (let i = opts.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      assetDd.node().appendChild(opts[j]);
+      assetDd.appendChild(opts[j]);
     }
   });
 
-  // Begin button
   $("begin-btn").addEventListener("click", () => {
     $("slideshow").classList.add("visible");
     goToSlide(1);
     $("slideshow").scrollIntoView({ behavior: "smooth" });
   });
 
-  // Long view nav
   $("explore-long-view-btn")?.addEventListener("click", () => {
     renderLongViewSection();
     $("long-view-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -324,14 +484,16 @@ function initDropdowns() {
     drawLongChart();
   });
 
-window.addEventListener("resize", () => {
+  window.addEventListener("resize", () => {
     if (wideData.length) drawLongChart();
   });
 }
 
 function ensureAssetAvailable() {
-  const available = new Set(crisisData.filter(d => d.episode === state.episode).map(d => d.asset_name));
-  if (!available.has(state.asset)) state.asset = [...available].find(a => a !== "S&P 500") || "Gold";
+  const selectable = dropdownAssetsForEpisode().filter(a => availabilityStatus(a, state.episode).kind !== "missing");
+  if (!selectable.includes(state.asset)) state.asset = selectable[0] || "Nasdaq 100";
+  const assetDd = $("asset-dropdown");
+  if (assetDd) assetDd.value = state.asset;
 }
 
 // ── SLIDE NAVIGATION ──────────────────────────────────────────────────────────
@@ -386,7 +548,7 @@ function updateInflationBlurb() {
     By <span class="highlight-pill">${years.blurbEnd}</span>,
     inflation had taken it down to
     <span class="highlight-pill highlight-red">$${endVal}</span>.
-    Cash quietly lost <b>$${loss}</b> of buying power — any investment had to beat that just to break even.`;
+    Cash quietly lost <b>$${loss}</b> of buying power. Before we even compare assets, doing nothing already has a cost.`;
 }
 
 // ── SLIDE 1: INFLATION CHART ──────────────────────────────────────────────────
@@ -458,11 +620,11 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
 
   // ── EPISODE portion (area + line) ──
   const epArea = g.append("path").attr("class", "ep-area")
-    .datum(lineData).attr("fill", "#fff3cd").attr("opacity", 0.5)
+    .datum(lineData).attr("fill", "#eef3ef").attr("opacity", 0.5)
     .attr("d", areaGen(activeX));
   const epLine = g.append("path").attr("class", "ep-line")
     .datum(lineData).attr("fill", "none")
-    .attr("stroke", "#e6a817").attr("stroke-width", 2.5)
+    .attr("stroke", "#666c70").attr("stroke-width", 2.5)
     .attr("d", lineGen(activeX));
 
   // Animate the initial draw
@@ -475,12 +637,12 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
   // ── EXTENSION portion (area + line beyond episode) — clipped, hidden until click ──
   const extData = fullLine.filter(d => d.year >= initMaxYear);
   const extArea = g.append("path").attr("class", "ext-area")
-    .datum(extData).attr("fill", "#fff3cd").attr("opacity", 0.5)
+    .datum(extData).attr("fill", "#eef3ef").attr("opacity", 0.5)
     .attr("clip-path", "url(#inflation-clip)")
     .attr("d", areaGen(expanded ? xFull : xInit));
   const extLine = g.append("path").attr("class", "ext-line")
     .datum(extData).attr("fill", "none")
-    .attr("stroke", "#e6a817").attr("stroke-width", 2.5)
+    .attr("stroke", "#666c70").attr("stroke-width", 2.5)
     .attr("clip-path", "url(#inflation-clip)")
     .attr("d", lineGen(expanded ? xFull : xInit));
 
@@ -500,10 +662,13 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
     .attr("x", -h / 2).attr("y", -44).attr("text-anchor", "middle")
     .text("Purchasing power of original $100");
+  g.append("text").attr("class", "axis-label")
+    .attr("x", w / 2).attr("y", h + 38).attr("text-anchor", "middle")
+    .text("Year");
 
   // Hover tooltip
   const tooltip  = d3.select("#tooltip");
-  const hoverDot = g.append("circle").attr("r", 5).attr("fill", "#e6a817")
+  const hoverDot = g.append("circle").attr("r", 5).attr("fill", "#666c70")
     .attr("stroke", "white").attr("stroke-width", 2).style("opacity", 0);
   const bisect   = d3.bisector(d => d.year).left;
 
@@ -614,26 +779,25 @@ function updateInflationBlurbToday(startYear) {
   if (!el) return;
   el.innerHTML = `Starting in <span class="highlight-pill">${startYear}</span>,
     that $100 is worth only <span class="highlight-pill highlight-red">$${endVal}</span> in 2025
-    — a loss of <b>$${loss}</b> in real purchasing power. Every year, inflation silently erodes what cash is worth.`;
+    — a loss of <b>$${loss}</b> in real purchasing power. The point is simple: cash is a benchmark too.`;
 }
 
 // ── SLIDE 2: MAIN $100 CHART ──────────────────────────────────────────────────
 function drawMainChart() {
   const filtered = crisisData.filter(d => d.episode === state.episode && d.asset_name === state.asset).sort((a,b) => a.date - b.date);
   const spy = crisisData.filter(d => d.episode === state.episode && d.asset_name === "S&P 500").sort((a,b) => a.date - b.date);
-  const meta = episodeMeta.find(d => d.episode === state.episode);
-  $("slide-2-title").textContent = `$100 in ${state.asset} during the ${state.episode}`;
+  $("slide-2-title").textContent = `If you invested $100 in ${assetLabel(state.asset)} during the ${state.episode}`;
 
   const el = $("main-chart");
   d3.select(el).selectAll("*").remove();
 
   if (!filtered.length) {
-    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">${state.asset} data isn't available for the ${state.episode} period.</p>`;
+    el.innerHTML = `<p class="no-data-msg">${assetLabel(state.asset)} does not have price history during the ${state.episode}. Try another asset for this episode.</p>`;
     return;
   }
 
-  const W = el.clientWidth || 780, H = 340;
-  const margin = { top: 24, right: 90, bottom: 48, left: 58 };
+  const W = el.clientWidth || 780, H = 360;
+  const margin = { top: 28, right: 100, bottom: 58, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
   const all = [...filtered, ...spy];
@@ -647,39 +811,36 @@ function drawMainChart() {
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
   g.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-w).tickFormat(""))
-    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
+    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#eeeeee"); });
   g.append("line").attr("x1",0).attr("x2",w).attr("y1",y(100)).attr("y2",y(100))
-    .attr("stroke","#ddd").attr("stroke-dasharray","5,4").attr("stroke-width",1.5);
-  g.append("text").attr("x", w + 4).attr("y", y(100) + 4).attr("fill","#ccc").attr("font-size",11).text("$100");
+    .attr("stroke","#111").attr("stroke-dasharray","5,4").attr("stroke-width",1.8).attr("opacity",0.55);
+  g.append("text").attr("x", w + 4).attr("y", y(100) + 4).attr("fill","#111").attr("font-size",11).attr("font-weight",700).text("$100 start");
 
   const lineGen = d3.line().x(d => x(d.date)).y(d => y(d.indexed_100)).curve(d3.curveMonotoneX);
-  const info = ASSET_INFO[state.asset];
-  const lineColor = info?.group === "New money" ? "#4a90d9" : info?.group === "Old money" ? "#e6a817" : "#888";
+  const lineColor = SELECTED_ASSET_COLOR;
 
-  // SPY line
   if (spy.length) {
-    const spyPath = g.append("path").datum(spy).attr("fill","none").attr("stroke","#bbb")
-      .attr("stroke-width", 2).attr("stroke-dasharray","6 3").attr("d", lineGen);
+    const spyPath = g.append("path").datum(spy).attr("fill","none").attr("stroke",BENCHMARK_COLOR)
+      .attr("stroke-width", 2.5).attr("stroke-dasharray","6 3").attr("opacity",0.9).attr("d", lineGen);
     animatePath(spyPath, 1000);
     const spyLast = spy[spy.length - 1];
     g.append("text").attr("x", x(spyLast.date)+7).attr("y", y(spyLast.indexed_100)+4)
-      .attr("fill","#bbb").attr("font-size",11).attr("font-weight",600).text(`SPY $${Math.round(spyLast.indexed_100)}`);
+      .attr("fill",BENCHMARK_COLOR).attr("font-size",11).attr("font-weight",700).text(`SPY $${Math.round(spyLast.indexed_100)}`);
   }
 
-  // Selected asset line
   const assetPath = g.append("path").datum(filtered).attr("fill","none").attr("stroke",lineColor)
     .attr("stroke-width", 3).attr("d", lineGen);
   animatePath(assetPath, 1400);
   const last = filtered[filtered.length - 1];
   g.append("text").attr("x", x(last.date)+8).attr("y", y(last.indexed_100)+4)
-    .attr("fill", last.indexed_100 >= 100 ? "#2a9d5c" : "#d9534f")
+    .attr("fill", "#111")
     .attr("font-size", 14).attr("font-weight", 800).text(`$${last.indexed_100.toFixed(0)}`);
 
   g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(6));
   g.append("g").call(d3.axisLeft(y).ticks(6).tickFormat(d => `$${d}`));
-  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-44).attr("text-anchor","middle").text("Value of $100 invested");
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+44).attr("text-anchor","middle").text("Date during the episode");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-50).attr("text-anchor","middle").text("Value of your original $100");
 
-  // Hover tooltip (both lines)
   const tooltip = d3.select("#tooltip");
   const dot = g.append("circle").attr("r",5).attr("fill",lineColor).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
@@ -694,7 +855,7 @@ function drawMainChart() {
       dot.attr("cx", x(d.date)).attr("cy", y(d.indexed_100)).style("opacity", 1);
       tooltip.style("opacity",1)
         .style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${state.asset}</b><br/>${d.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}<br/>$100 → <b>$${d.indexed_100.toFixed(2)}</b>${sd ? `<br/><span style="color:#bbb">SPY: $${sd.indexed_100.toFixed(2)}</span>` : ""}`);
+        .html(`<b>${assetLabel(state.asset)}</b><br/>${d.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}<br/>$100 became <b>$${d.indexed_100.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">SPY benchmark: $${sd.indexed_100.toFixed(2)}</span>` : ""}`);
     })
     .on("mouseleave", () => { dot.style("opacity",0); tooltip.style("opacity",0); });
 }
@@ -706,8 +867,8 @@ function drawBarChart() {
   d3.select(el).selectAll("*").remove();
   if (!data.length) return;
 
-  const W = el.clientWidth || 780, H = 340;
-  const margin = { top: 10, right: 64, bottom: 36, left: 148 };
+  const W = el.clientWidth || 780, H = 360;
+  const margin = { top: 12, right: 72, bottom: 58, left: 168 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
   const x = d3.scaleLinear().domain(d3.extent([...data.map(d => d.total_return_pct), 0])).nice().range([0, w]);
@@ -716,9 +877,11 @@ function drawBarChart() {
   const svg = d3.select(el).append("svg").attr("width","100%").attr("viewBox",`0 0 ${W} ${H}`);
   const g = svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
 
-  g.append("line").attr("x1",x(0)).attr("x2",x(0)).attr("y1",0).attr("y2",h).attr("stroke","#ddd");
+  g.append("line").attr("x1",x(0)).attr("x2",x(0)).attr("y1",0).attr("y2",h).attr("stroke","#111").attr("opacity",0.35);
   g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => d + "%"))
     .call(gx => gx.select(".domain").remove());
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+44).attr("text-anchor","middle").text("Total return during this episode");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-150).attr("text-anchor","middle").text("Assets");
 
   const tooltip = d3.select("#tooltip");
   const bars = g.selectAll(".bar").data(data).join("rect").attr("class","bar")
@@ -726,16 +889,17 @@ function drawBarChart() {
     .attr("y", d => y(d.asset_name))
     .attr("height", y.bandwidth())
     .attr("width", d => Math.abs(x(d.total_return_pct) - x(0)))
-    .attr("fill", d => d.total_return_pct >= 0 ? "#2a9d5c" : "#d9534f")
-    .attr("opacity", d => d.asset_name === state.asset ? 1 : 0.6)
+    .attr("fill", d => d.total_return_pct >= 0 ? "#0b6f45" : "#c84b4b")
+    .attr("opacity", d => d.asset_name === state.asset ? 1 : 0.62)
+    .attr("stroke", d => d.asset_name === state.asset ? "#111" : "none")
+    .attr("stroke-width", 1.5)
     .attr("rx", 2)
     .on("mousemove", (event, d) => {
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${d.asset_name}</b><br/>Return: <b>${fmtPct(d.total_return_pct)}</b><br/>$100 → <b>${fmtMoney(d.end_value)}</b><br/>Worst drop: ${fmtPct(d.max_drawdown)}`);
+        .html(`<b>${assetLabel(d.asset_name)}</b><br/>Return: <b>${fmtPct(d.total_return_pct)}</b><br/>$100 became <b>${fmtMoney(d.end_value)}</b><br/>Worst drop: ${fmtPct(d.max_drawdown)}`);
     })
     .on("mouseleave", () => tooltip.style("opacity",0));
 
-  // Animate in
   bars.attr("width", 0).transition().duration(900).delay((d,i) => i * 45)
     .attr("x", d => Math.min(x(0), x(d.total_return_pct)))
     .attr("width", d => Math.abs(x(d.total_return_pct) - x(0)));
@@ -743,15 +907,15 @@ function drawBarChart() {
   g.selectAll(".bar-label").data(data).join("text").attr("class","bar-label")
     .attr("x",-6).attr("y", d => y(d.asset_name) + y.bandwidth()/2 + 4)
     .attr("text-anchor","end")
-    .attr("fill", d => d.asset_name === state.asset ? "#1a1a1a" : "#999")
+    .attr("fill", d => d.asset_name === state.asset ? "#111" : "#777")
     .attr("font-weight", d => d.asset_name === state.asset ? "700" : "400")
-    .text(d => d.asset_name);
+    .text(d => ASSET_INFO[d.asset_name]?.ticker || d.asset_name);
 
   g.selectAll(".bar-value").data(data).join("text").attr("class","bar-value")
     .attr("x", d => d.total_return_pct >= 0 ? x(d.total_return_pct)+4 : x(d.total_return_pct)-4)
     .attr("y", d => y(d.asset_name) + y.bandwidth()/2 + 4)
     .attr("text-anchor", d => d.total_return_pct >= 0 ? "start" : "end")
-    .attr("fill", d => d.total_return_pct >= 0 ? "#2a9d5c" : "#d9534f")
+    .attr("fill", "#111")
     .attr("font-size",11).attr("font-weight",600)
     .text(d => fmtPct(d.total_return_pct));
 }
@@ -766,7 +930,6 @@ function drawAssetInfoPanel() {
   const rankRows = summaryData.filter(d => d.episode === episode).sort((a,b) => b.total_return_pct - a.total_return_pct);
   const rank = rankRows.findIndex(d => d.asset_name === asset) + 1;
   const epCtx = EPISODE_CONTEXT[episode] || {};
-  const metaStory = episodeMeta.find(d => d.episode === episode)?.story || "";
   const isNew = info?.group === "New money";
   const groupExplain = GROUP_EXPLAINER[info?.group] || "";
 
@@ -775,37 +938,37 @@ function drawAssetInfoPanel() {
       <div class="asset-stat">
         <div class="asset-stat-label">End value</div>
         <div class="asset-stat-val ${row.end_value >= 100 ? "pos" : "neg"}">${fmtMoney(row.end_value)}</div>
-        <div class="asset-stat-hint">$100 became this</div>
+        <div class="asset-stat-hint">what your $100 became</div>
       </div>
       <div class="asset-stat">
         <div class="asset-stat-label">Total return</div>
         <div class="asset-stat-val ${row.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(row.total_return_pct)}</div>
-        <div class="asset-stat-hint">% gain or loss</div>
+        <div class="asset-stat-hint">gain or loss</div>
       </div>
       <div class="asset-stat">
         <div class="asset-stat-label">Worst drawdown</div>
         <div class="asset-stat-val neg">${fmtPct(row.max_drawdown)}</div>
-        <div class="asset-stat-hint">biggest fall</div>
+        <div class="asset-stat-hint">biggest fall along the way</div>
       </div>
       <div class="asset-stat">
         <div class="asset-stat-label">Rank</div>
         <div class="asset-stat-val">${rank}/${rankRows.length}</div>
-        <div class="asset-stat-hint">within episode</div>
+        <div class="asset-stat-hint">within this episode</div>
       </div>
-    </div>` : "";
+    </div>` : `<p class="takeaway"><b>Data note:</b> This asset did not trade through the full ${episode} window, so it is not ranked for this episode.</p>`;
 
   panel.innerHTML = `
     <div class="info-card">
       <span class="info-tag ${isNew ? "tag-new-money" : "tag-old-money"}">${info?.group || "Asset"}</span>
-      <div class="asset-name-large">${getTicker(asset)} ${asset}</div>
+      <div class="asset-name-large">${assetLabel(asset)}</div>
       <p>${info?.description || ""}</p>
-      <p class="takeaway">💡 ${groupExplain}</p>
+      <p class="takeaway"><b>Why this category matters:</b> ${groupExplain}</p>
       ${statsHTML}
     </div>
     <div class="info-card">
-      <span class="info-tag">${episode}</span>
-      <p><b>${epCtx.dates || ""}</b> ${metaStory}</p>
-      ${takeaway ? `<p class="takeaway">📌 ${takeaway}</p>` : ""}
+      <span class="info-tag">${episode} · ${epCtx.dates || ""}</span>
+      <p>${epCtx.summary || ""}</p>
+      ${takeaway ? `<p class="takeaway"><b>What happened here:</b> ${takeaway}</p>` : ""}
       ${epCtx.keyFact ? `<p class="takeaway" style="margin-top:10px"><b>Key insight:</b> ${epCtx.keyFact}</p>` : ""}
     </div>`;
 }
@@ -832,8 +995,8 @@ function drawOldVsNewChart() {
   const allVals = [...oldSeries, ...newSeries].map(d => d.val);
   if (!allVals.length) return;
 
-  const totalW = el.clientWidth || 780, H = 260;
-  const margin = { top: 14, right: 60, bottom: 40, left: 56 };
+  const totalW = el.clientWidth || 780, H = 280;
+  const margin = { top: 16, right: 64, bottom: 54, left: 64 };
   const W = totalW - margin.left - margin.right;
   const [yMin, yMax] = d3.extent(allVals);
   const yPad = (yMax - yMin) * 0.1;
@@ -844,31 +1007,32 @@ function drawOldVsNewChart() {
   const g = svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
 
   g.append("g").call(d3.axisLeft(yScale).ticks(5).tickSize(-W).tickFormat(""))
-    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke","#f4f4f4"); });
+    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke","#eeeeee"); });
   g.append("line").attr("x1",0).attr("x2",W).attr("y1",yScale(100)).attr("y2",yScale(100))
-    .attr("stroke","#ddd").attr("stroke-dasharray","3 3");
+    .attr("stroke","#111").attr("stroke-dasharray","3 3").attr("opacity",0.35);
   g.append("g").attr("transform",`translate(0,${H})`).call(d3.axisBottom(xScale).ticks(6).tickFormat(d => `Day ${d}`));
   g.append("g").call(d3.axisLeft(yScale).ticks(5).tickFormat(d => `$${d3.format(".0f")(d)}`));
+  g.append("text").attr("class","axis-label").attr("x",W/2).attr("y",H+42).attr("text-anchor","middle").text("Days since the episode began");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-H/2).attr("y",-50).attr("text-anchor","middle").text("Average value of $100");
 
   const makeLine = d3.line().x(d => xScale(d.day)).y(d => yScale(d.val)).curve(d3.curveCatmullRom.alpha(0.5));
 
-  const oldPath = g.append("path").datum(oldSeries).attr("fill","none").attr("stroke","#e6a817").attr("stroke-width",2.5).attr("d",makeLine);
+  const oldPath = g.append("path").datum(oldSeries).attr("fill","none").attr("stroke",OLD_MONEY_COLOR).attr("stroke-width",2.7).attr("d",makeLine);
   animatePath(oldPath, 1200);
-  const newPath = g.append("path").datum(newSeries).attr("fill","none").attr("stroke","#4a90d9").attr("stroke-width",2.5).attr("stroke-dasharray","7 4").attr("d",makeLine);
+  const newPath = g.append("path").datum(newSeries).attr("fill","none").attr("stroke",NEW_MONEY_COLOR).attr("stroke-width",2.7).attr("stroke-dasharray","7 4").attr("d",makeLine);
   animatePath(newPath, 1200);
 
-  [{ s: oldSeries, c: "#e6a817", label: "Old money" }, { s: newSeries, c: "#4a90d9", label: "New money" }].forEach(({ s, c, label }) => {
+  [{ s: oldSeries, c: OLD_MONEY_COLOR, label: "Old money" }, { s: newSeries, c: NEW_MONEY_COLOR, label: "New money" }].forEach(({ s, c, label }) => {
     if (!s.length) return;
     const last = s[s.length - 1];
     g.append("text").attr("x", xScale(last.day)+5).attr("y", yScale(last.val)+4)
-      .attr("fill", c).attr("font-size", 11).attr("font-weight", 700).text(`$${last.val.toFixed(0)}`);
+      .attr("fill", c).attr("font-size", 11).attr("font-weight", 700).text(`${label}: $${last.val.toFixed(0)}`);
   });
 
-  // Hover tooltip
   const tooltip = d3.select("#tooltip");
   const crosshair = g.append("line").attr("y1",0).attr("y2",H).attr("stroke","#ddd").attr("stroke-dasharray","3 3").style("opacity",0);
-  const dotOld = g.append("circle").attr("r",4).attr("fill","#e6a817").attr("stroke","white").attr("stroke-width",2).style("opacity",0);
-  const dotNew = g.append("circle").attr("r",4).attr("fill","#4a90d9").attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const dotOld = g.append("circle").attr("r",4).attr("fill",OLD_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const dotNew = g.append("circle").attr("r",4).attr("fill",NEW_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.day).left;
 
   g.append("rect").attr("width",W).attr("height",H).attr("fill","transparent")
@@ -882,7 +1046,7 @@ function drawOldVsNewChart() {
       if (od) { dotOld.attr("cx",xScale(od.day)).attr("cy",yScale(od.val)).style("opacity",1); }
       if (nd) { dotNew.attr("cx",xScale(nd.day)).attr("cy",yScale(nd.val)).style("opacity",1); }
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>Day ${day}</b><br/><span style="color:#e6a817">● Old money</span> ${od ? "$"+od.val.toFixed(1) : "—"}<br/><span style="color:#4a90d9">● New money</span> ${nd ? "$"+nd.val.toFixed(1) : "—"}`);
+        .html(`<b>Day ${day}</b><br/><span style="color:${OLD_MONEY_COLOR}">● Old money</span> ${od ? "$"+od.val.toFixed(1) : "—"}<br/><span style="color:${NEW_MONEY_COLOR}">● New money</span> ${nd ? "$"+nd.val.toFixed(1) : "—"}`);
     })
     .on("mouseleave", () => { crosshair.style("opacity",0); dotOld.style("opacity",0); dotNew.style("opacity",0); tooltip.style("opacity",0); });
 }
@@ -890,7 +1054,7 @@ function drawOldVsNewChart() {
 // ── SLIDE 4: GROUP SUMMARY ────────────────────────────────────────────────────
 function drawGroupSummary() {
   $("slide-4-title").textContent = `Old money vs new money: ${state.episode}`;
-  $("slide-4-desc").textContent = "Every asset grouped by type. See which camp held up and which didn't.";
+  $("slide-4-desc").textContent = "This view compares the two wealth stories directly. It is not trying to crown one permanent winner; it shows which assumptions this episode rewarded.";
   const container = $("group-summary");
   container.innerHTML = "";
   const episodeRows = summaryData.filter(d => d.episode === state.episode);
@@ -902,9 +1066,10 @@ function drawGroupSummary() {
     card.className = `group-card ${groupName === "New money" ? "new-money-card" : "old-money-card"}`;
     card.innerHTML = `
       <div class="group-card-label">${groupName}</div>
-      <div class="group-card-title">Avg: <span class="${avg >= 0 ? "pos" : "neg"}">${fmtPct(avg)}</span></div>
+      <div class="group-card-title">Average return: <span class="${avg >= 0 ? "pos" : "neg"}">${fmtPct(avg)}</span></div>
+      <p class="group-card-copy">${GROUP_EXPLAINER[groupName]}</p>
       <ul class="group-asset-list">
-        ${rows.map(d => `<li class="group-asset-item"><span>${d.asset_name}</span><b class="${d.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(d.total_return_pct)}</b></li>`).join("")}
+        ${rows.map(d => `<li class="group-asset-item"><span>${ASSET_INFO[d.asset_name]?.ticker || d.asset_name} ${d.asset_name}</span><b class="${d.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(d.total_return_pct)}</b></li>`).join("")}
       </ul>`;
     container.appendChild(card);
   });
@@ -912,13 +1077,13 @@ function drawGroupSummary() {
 
 // ── SLIDE 5: QUIZ ─────────────────────────────────────────────────────────────
 function buildQuizOptions() {
-  const assets = [...new Set(summaryData.map(d => d.asset_name))].sort();
+  const assets = allStressTestAssets();
   const container = $("slide5-options");
   if (!container) return;
   container.innerHTML = "";
   assets.forEach(name => {
     const btn = document.createElement("button");
-    btn.textContent = name;
+    btn.textContent = assetLabel(name);
     btn.addEventListener("click", function() {
       state.selectedQuiz = name;
       container.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
@@ -954,11 +1119,11 @@ function revealQuiz() {
   let pickedMsg = "";
   if (picked) {
     pickedMsg = picked.assetName === winner.assetName
-      ? "✅ You got it. "
+      ? "You got it. "
       : `You picked <b>${picked.assetName}</b> (ranked #${pickedRank} for consistency). `;
   }
   result.innerHTML = `
-    <h3>🏅 ${winner.assetName} held up most consistently across all episodes.</h3>
+    <h3>${assetLabel(winner.assetName)} held up most consistently across all episodes.</h3>
     <p>${pickedMsg}${winner.assetName} finished positive in <b>${winner.positive} out of ${winner.count}</b> episodes.
     Bitcoin had explosive returns — but consistency across every type of crisis is a different game.</p>`;
   drawQuizRanking(ranked, picked?.assetName);
@@ -979,7 +1144,7 @@ function drawQuizRanking(data, highlightName) {
   g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(4).tickFormat(d => `${Math.round(d*100)}%`)).call(gx => gx.select(".domain").remove());
   g.selectAll("rect").data(top).join("rect")
     .attr("x",0).attr("y", d => y(d.assetName)).attr("height", y.bandwidth()).attr("width",0)
-    .attr("fill", d => d.group === "New money" ? "#4a90d9" : "#e6a817")
+    .attr("fill", d => d.group === "New money" ? NEW_MONEY_COLOR : OLD_MONEY_COLOR)
     .attr("opacity", d => d.assetName === highlightName ? 1 : 0.6).attr("rx",2)
     .transition().duration(800).delay((_,i) => i*60).ease(d3.easeQuadOut)
     .attr("width", d => x(d.positiveShare));
@@ -987,7 +1152,9 @@ function drawQuizRanking(data, highlightName) {
     .attr("x",-6).attr("y", d => y(d.assetName)+y.bandwidth()/2+4).attr("text-anchor","end")
     .attr("font-weight", d => d.assetName === highlightName ? "700" : "400")
     .attr("fill", d => d.assetName === highlightName ? "#1a1a1a" : "#999")
-    .text(d => d.assetName);
+    .text(d => ASSET_INFO[d.assetName]?.ticker || d.assetName);
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+26).attr("text-anchor","middle").text("% finished positive across the 6 episodes");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-132).attr("text-anchor","middle").text("Assets");
   g.selectAll(".bar-value").data(top).join("text").attr("class","bar-value")
     .attr("x", d => x(d.positiveShare)+6).attr("y", d => y(d.assetName)+y.bandwidth()/2+4)
     .attr("opacity",0).text(d => `${d.positive}/${d.count} positive`)
@@ -1001,8 +1168,7 @@ function renderLongViewSection() {
 }
 
 function renderCheckboxes() {
-  const allAssets = ["S&P 500", ...Object.keys(ASSET_INFO).filter(a => a !== "S&P 500")];
-  // Always keep S&P 500 + selected asset checked
+  const allAssets = ["S&P 500", ...allStressTestAssets()];
   checkedAssets.add("S&P 500");
   if (state.asset) checkedAssets.add(state.asset);
 
@@ -1011,11 +1177,10 @@ function renderCheckboxes() {
   container.innerHTML = "";
 
   allAssets.forEach(name => {
-    const ticker = ASSET_INFO[name]?.ticker || name;
     const isLocked = name === "S&P 500";
     const label = document.createElement("label");
     label.className = `check-chip${isLocked ? " locked" : ""}`;
-    label.innerHTML = `<input type="checkbox" value="${name}" ${checkedAssets.has(name) ? "checked" : ""} ${isLocked ? "disabled" : ""}/> <span>${ticker} ${name}</span>`;
+    label.innerHTML = `<input type="checkbox" value="${name}" ${checkedAssets.has(name) ? "checked" : ""} ${isLocked ? "disabled" : ""}/> <span>${assetLabel(name)}</span>`;
     label.querySelector("input").addEventListener("change", function() {
       if (name === "S&P 500") return;
       this.checked ? checkedAssets.add(name) : checkedAssets.delete(name);
@@ -1100,33 +1265,19 @@ function drawLongChart() {
     .defined(d => Number.isFinite(d.value) && d.value > 0)
     .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
-  // Consistent per-asset colors (same asset = same color every time)
-  const ASSET_COLORS = {
-    "S&P 500":         "#888",
-    "Gold":            "#e6a817",
-    "Financials":      "#e67e22",
-    "Regional Banks":  "#c0392b",
-    "Energy":          "#f39c12",
-    "Utilities":       "#7f8c8d",
-    "Long Bonds":      "#2980b9",
-    "Nasdaq 100":      "#4a90d9",
-    "Technology":      "#1abc9c",
-    "Semiconductors":  "#8e44ad",
-    "Innovation Stocks":"#d9534f",
-    "Bitcoin":         "#2a9d5c",
-  };
+  // Consistent per-asset colors are defined globally.
 
   series.forEach(s => {
     const isSpy = s.name === "S&P 500";
     const isSelected = s.name === state.asset;
-    const color = isSelected && !isSpy ? "#2a9d5c" : (ASSET_COLORS[s.name] || "#999");
+    const color = isSelected && !isSpy ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
 
     const path = g.append("path").datum(s.values)
       .attr("fill", "none")
       .attr("stroke", color)
-      .attr("stroke-width", isSpy ? 2 : isSelected ? 3.2 : 2)
+      .attr("stroke-width", isSpy ? 3 : isSelected ? 3.2 : 2)
       .attr("stroke-dasharray", isSpy ? "6 3" : "none")
-      .attr("opacity", isSpy ? 0.8 : 1)
+      .attr("opacity", isSpy ? 1 : 0.92)
       .attr("d", lineGen);
 
     // Animate
@@ -1154,7 +1305,10 @@ function drawLongChart() {
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
     .attr("x", -h / 2).attr("y", -54).attr("text-anchor", "middle")
-    .text("Indexed value from first available date");
+    .text("Value of $100 from first available date");
+  g.append("text").attr("class", "axis-label")
+    .attr("x", w / 2).attr("y", h + 42).attr("text-anchor", "middle")
+    .text("Date (shown in quarterly-style ticks for readability)");
 
   // Hover tooltip
   const tooltip = d3.select("#tooltip");
@@ -1171,7 +1325,7 @@ function drawLongChart() {
       series.forEach(s => {
         const i = Math.min(bisect(s.values, date, 1), s.values.length - 1);
         const d = s.values[i];
-        if (d) html += `<br/>${s.name}: <b>${fmtDollar(d.value)}</b>`;
+        if (d) html += `<br/>${assetLabel(s.name)}: <b>${fmtDollar(d.value)}</b>`;
       });
       tooltip.style("opacity", 1)
         .style("left", (event.clientX + 14) + "px").style("top", (event.clientY - 48) + "px")
@@ -1187,6 +1341,7 @@ function continueToNextCrisis() {
   const epDd = $("episode-dropdown");
   if (epDd) epDd.value = state.episode;
   ensureAssetAvailable();
+  refreshAssetDropdown();
   updateInflationBlurb();
   drawInflationChart();
   renderLongViewSection();
@@ -1194,67 +1349,98 @@ function continueToNextCrisis() {
   $("long-view-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// ── MARKET TABLE (removed from page; function kept as no-op to avoid errors) ──
+// ── MARKET TABLE / CLICKABLE ASSET GUIDE ─────────────────────────────────────
 function renderTable() {
-  // Market sheet section removed — data now lives in "Know your assets" glossary cards
+  buildGlossaryCards();
 }
 
-// ── GLOSSARY ──────────────────────────────────────────────────────────────────
 function buildGlossaryCards() {
   const container = $("glossary-cards");
   if (!container) return;
-  container.innerHTML = "";
-  Object.entries(ASSET_INFO).forEach(([name, info]) => {
-    const isNew = info.group === "New money";
-    const card = document.createElement("div");
-    card.className = `glossary-card-tile ${isNew ? "new-card" : "old-card"}`;
-    card.dataset.group = isNew ? "new" : "old";
-    card.innerHTML = `
-      <div class="tile-badge ${isNew ? "new-badge" : "old-badge"}">${info.group.toUpperCase()}</div>
-      <h3 class="tile-name">${name}</h3>
-      <p class="tile-preview">${info.description.slice(0, 110)}…</p>
-      <button class="tile-learn-btn" type="button">Learn more →</button>`;
-    card.addEventListener("click", () => openGlossaryModal(name));
-    container.appendChild(card);
+  const activeFilter = document.querySelector(".filter-btn.active")?.dataset.filter || "all";
+  const assets = ["S&P 500", ...allStressTestAssets()].filter(name => {
+    if (activeFilter === "all") return true;
+    const group = ASSET_INFO[name]?.group;
+    if (activeFilter === "old") return group === "Old money";
+    if (activeFilter === "new") return group === "New money";
+    return true;
+  });
+
+  const latestEpisode = state.episode || episodeMeta[0]?.episode;
+  container.innerHTML = `
+    <div class="market-table-wrap asset-guide-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Role</th>
+            <th class="td-right">This episode</th>
+            <th>Why it matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${assets.map(name => {
+            const info = ASSET_INFO[name] || {};
+            const r = rowFor(name, latestEpisode);
+            const status = availabilityStatus(name, latestEpisode);
+            const returnText = r
+              ? `<span class="${r.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(r.total_return_pct)}</span>${status.kind === "partial" ? `<div class="data-status partial">partial data</div>` : ""}`
+              : `<span class="data-status missing">${status.short}</span>`;
+            const previewSource = status.kind === "missing" || status.kind === "partial" ? status.detail : (info.description || "");
+            const preview = (previewSource || "").replace(/<[^>]*>/g, "").slice(0, 145) + ((previewSource || "").length > 145 ? "…" : "");
+            const filterClass = info.group === "New money" ? "new-row" : info.group === "Old money" ? "old-row" : "base-row";
+            return `<tr class="asset-guide-row ${filterClass}" data-asset="${name}">
+              <td><b>${assetLabel(name)}</b></td>
+              <td>${info.group || "Asset"}</td>
+              <td class="td-right">${returnText}</td>
+              <td>${preview} <span class="row-action">Open notes →</span></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
+  container.querySelectorAll(".asset-guide-row").forEach(row => {
+    row.addEventListener("click", () => openGlossaryModal(row.dataset.asset));
   });
 
   document.querySelectorAll(".filter-btn").forEach(btn => {
-    btn.addEventListener("click", function() {
+    btn.onclick = function() {
       document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
       this.classList.add("active");
-      const f = this.dataset.filter;
-      document.querySelectorAll(".glossary-card-tile").forEach(c => {
-        c.style.display = (f === "all" || c.dataset.group === f) ? "" : "none";
-      });
-    });
+      buildGlossaryCards();
+    };
   });
 }
 
 function openGlossaryModal(assetName) {
   const info = ASSET_INFO[assetName];
+  if (!info) return;
   const isNew = info.group === "New money";
   const explainer = GROUP_EXPLAINER[info.group] || "";
   const episodeListHTML = Object.keys(EPISODE_TAKEAWAYS).map(ep => {
     const takeaway = EPISODE_TAKEAWAYS[ep]?.[assetName];
     if (!takeaway) return "";
     const row = summaryData.find(d => d.episode === ep && d.asset_name === assetName);
+    const status = availabilityStatus(assetName, ep);
     const retBadge = row
-      ? `<span class="modal-ret-badge ${row.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(row.total_return_pct)}</span>`
-      : "";
+      ? `<span class="modal-ret-badge ${row.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(row.total_return_pct)}${status.kind === "partial" ? " · partial" : ""}</span>`
+      : `<span class="modal-ret-badge muted">${status.short || "not available"}</span>`;
+    const statusLine = status.kind === "full" ? "" : `<div class="modal-data-note">${status.detail}</div>`;
     return `
       <li class="modal-episode-item">
         <div class="modal-episode-name"><span>${ep}</span>${retBadge}</div>
         <div class="modal-episode-takeaway">${takeaway}</div>
+        ${statusLine}
       </li>`;
   }).filter(Boolean).join("");
 
   $("modal-content").innerHTML = `
-    <div class="modal-asset-name">${assetName}</div>
-    <span class="modal-group-badge ${isNew ? "new-money" : "old-money"}">${info.group}</span>
+    <div class="modal-asset-name">${assetLabel(assetName)}</div>
+    <span class="modal-group-badge ${isNew ? "new-money" : info.group === "Old money" ? "old-money" : "base-money"}">${info.group}</span>
     <p class="modal-description">${info.description}</p>
-    <div class="modal-group-explainer">💡 ${explainer}</div>
+    <div class="modal-group-explainer"><b>Category context:</b> ${explainer}</div>
     <p class="modal-description" style="margin-top:14px"><b>Example:</b> ${info.example}</p>
-    <div class="modal-episodes-label">Performance across episodes</div>
+    <div class="modal-episodes-label">Performance notes by episode</div>
     <ul class="modal-episode-list">${episodeListHTML}</ul>`;
 
   const overlay = $("glossary-modal");
@@ -1277,7 +1463,7 @@ function closeGlossaryModal() {
 const PB = { year: 2007, selected: new Set(), weights: {} };
 
 function buildPortfolioBuilder() {
-  const assets = [...new Set(crisisData.filter(d => d.asset_name !== "S&P 500").map(d => d.asset_name))].sort();
+  const assets = allStressTestAssets();
   const slider = $("pb-year-slider");
   const yearDisplay = $("pb-year-display");
   if (!slider) return;
@@ -1313,7 +1499,7 @@ function buildPortfolioBuilder() {
     const isNew = info?.group === "New money";
     const pill = document.createElement("button");
     pill.className = `pb-pill ${isNew ? "pb-pill-new" : "pb-pill-old"}`;
-    pill.textContent = name;
+    pill.textContent = assetLabel(name);
     pill.dataset.asset = name;
     pill.addEventListener("click", () => togglePBAsset(name));
     pillContainer.appendChild(pill);
@@ -1350,11 +1536,11 @@ function rebuildWeightSliders() {
   slidersEl.innerHTML = "";
   assets.forEach(name => {
     const isNew = ASSET_INFO[name]?.group === "New money";
-    const color = isNew ? "#4a90d9" : "#e6a817";
+    const color = isNew ? NEW_MONEY_COLOR : OLD_MONEY_COLOR;
     const row = document.createElement("div");
     row.className = "pb-slider-row";
     row.innerHTML = `
-      <div class="pb-slider-label"><span class="pb-slider-dot" style="background:${color}"></span><span>${name}</span></div>
+      <div class="pb-slider-label"><span class="pb-slider-dot" style="background:${color}"></span><span>${assetLabel(name)}</span></div>
       <input type="range" class="pb-weight-slider" data-asset="${name}" min="0" max="100" step="1" value="${PB.weights[name]}" />
       <span class="pb-weight-val" id="pbw-${name.replace(/[\s&]/g,'_')}">${PB.weights[name]}%</span>`;
     slidersEl.appendChild(row);
@@ -1442,19 +1628,21 @@ function renderPBChart() {
   g.append("text").attr("x",w+4).attr("y",y(100)+4).attr("fill","#ccc").attr("font-size",11).text("$100");
   const lineGen = d3.line().x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
   if (spSeries.length) {
-    const spPath = g.append("path").datum(spSeries).attr("fill","none").attr("stroke","#bbb").attr("stroke-width",1.8).attr("stroke-dasharray","6 3").attr("d",lineGen);
+    const spPath = g.append("path").datum(spSeries).attr("fill","none").attr("stroke",BENCHMARK_COLOR).attr("stroke-width",2.8).attr("stroke-dasharray","6 3").attr("opacity",0.95).attr("d",lineGen);
     const spLen = spPath.node().getTotalLength();
     spPath.attr("stroke-dasharray",spLen).attr("stroke-dashoffset",spLen).transition().duration(1000).ease(d3.easeQuadInOut).attr("stroke-dashoffset",0).on("end", () => spPath.attr("stroke-dasharray","6 3"));
     const spLast = spSeries[spSeries.length-1];
-    g.append("text").attr("x",x(spLast.date)+6).attr("y",y(spLast.value)+4).attr("fill","#bbb").attr("font-size",11).attr("font-weight",600).text(`$${spLast.value.toFixed(0)}`);
+    g.append("text").attr("x",x(spLast.date)+6).attr("y",y(spLast.value)+4).attr("fill",BENCHMARK_COLOR).attr("font-size",11).attr("font-weight",600).text(`$${spLast.value.toFixed(0)}`);
   }
-  const portPath = g.append("path").datum(portfolioSeries).attr("fill","none").attr("stroke","#4a90d9").attr("stroke-width",3).attr("d",lineGen);
+  const portPath = g.append("path").datum(portfolioSeries).attr("fill","none").attr("stroke",SELECTED_ASSET_COLOR).attr("stroke-width",2.6).attr("d",lineGen);
   const portLen = portPath.node().getTotalLength();
   portPath.attr("stroke-dasharray",portLen).attr("stroke-dashoffset",portLen).transition().duration(1200).delay(200).ease(d3.easeQuadInOut).attr("stroke-dashoffset",0);
   const portLast = portfolioSeries[portfolioSeries.length-1];
   g.append("text").attr("x",x(portLast.date)+6).attr("y",y(portLast.value)+4).attr("fill",portLast.value>=100?"#2a9d5c":"#d9534f").attr("font-size",14).attr("font-weight",800).text(`$${portLast.value.toFixed(0)}`);
   g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(6)).call(gx => gx.select(".domain").attr("stroke","#eee"));
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`)).call(gx => gx.select(".domain").attr("stroke","#eee"));
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+40).attr("text-anchor","middle").text("Date");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-48).attr("text-anchor","middle").text("Value of $100");
 
   const tooltip = d3.select("#tooltip");
   const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#e0e0e0").attr("stroke-dasharray","3 3").style("opacity",0);
@@ -1469,11 +1657,11 @@ function renderPBChart() {
       const sd = si >= 0 ? spSeries[si] : null;
       hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${pd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#4a90d9">● Your portfolio</span> <b>$${pd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#bbb">● S&P 500</span> $${sd.value.toFixed(2)}` : ""}`);
+        .html(`<b>${pd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Your portfolio</span> <b>$${pd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> $${sd.value.toFixed(2)}` : ""}`);
     })
     .on("mouseleave", () => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
 
-  if (legendEl) legendEl.innerHTML = `<span class="pb-leg-item"><span class="pb-leg-swatch" style="background:#4a90d9"></span>Your portfolio</span><span class="pb-leg-item"><span class="pb-leg-swatch pb-leg-dashed"></span>S&amp;P 500</span>`;
+  if (legendEl) legendEl.innerHTML = `<span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${SELECTED_ASSET_COLOR}"></span>Your portfolio</span><span class="pb-leg-item"><span class="pb-leg-swatch pb-leg-dashed"></span>S&amp;P 500</span>`;
 }
 
 function assetFinalReturn(assetName, startYear) {
@@ -1551,7 +1739,7 @@ function renderBestCombo() {
       <div class="pb-best-assets">
         ${bestCombo.map((name, i) => {
           const isNew = ASSET_INFO[name]?.group === "New money";
-          return `<span class="pb-best-pill ${isNew ? "pb-pill-new" : "pb-pill-old"}">${name} <b>${displayPcts[i]}%</b></span>`;
+          return `<span class="pb-best-pill ${isNew ? "pb-pill-new" : "pb-pill-old"}">${assetLabel(name)} <b>${displayPcts[i]}%</b></span>`;
         }).join("")}
       </div>
       <div class="pb-best-result">$100 → <b class="${isPos?"pos":"neg"}">$${bestReturn.toFixed(0)}</b> <span class="${isPos?"pos":"neg"}">(${isPos?"+":""}${gain}%)</span></div>
@@ -1578,15 +1766,17 @@ function renderBestCombo() {
   g.append("line").attr("x1",0).attr("x2",w).attr("y1",y(100)).attr("y2",y(100)).attr("stroke","#e0e0e0").attr("stroke-dasharray","5,4");
   const lineGen = d3.line().x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
   if (spSeries.length) {
-    const sp = g.append("path").datum(spSeries).attr("fill","none").attr("stroke","#bbb").attr("stroke-width",1.8).attr("d",lineGen);
+    const sp = g.append("path").datum(spSeries).attr("fill","none").attr("stroke",BENCHMARK_COLOR).attr("stroke-width",2.8).attr("stroke-dasharray","6 3").attr("opacity",0.95).attr("d",lineGen);
     animatePath(sp, 1000);
     const sl = spSeries[spSeries.length-1];
-    g.append("text").attr("x",x(sl.date)+6).attr("y",y(sl.value)+4).attr("fill","#bbb").attr("font-size",11).attr("font-weight",600).attr("opacity",0).text(`$${sl.value.toFixed(0)}`).transition().delay(900).duration(300).attr("opacity",1);
+    g.append("text").attr("x",x(sl.date)+6).attr("y",y(sl.value)+4).attr("fill",BENCHMARK_COLOR).attr("font-size",11).attr("font-weight",600).attr("opacity",0).text(`SPY $${sl.value.toFixed(0)}`).transition().delay(900).duration(300).attr("opacity",1);
   }
-  const bp = g.append("path").datum(portfolioSeries).attr("fill","none").attr("stroke","#2a9d5c").attr("stroke-width",3).attr("d",lineGen);
+  const bp = g.append("path").datum(portfolioSeries).attr("fill","none").attr("stroke",SELECTED_ASSET_COLOR).attr("stroke-width",2.6).attr("d",lineGen);
   animatePath(bp, 1200);
   const bl = portfolioSeries[portfolioSeries.length-1];
-  g.append("text").attr("x",x(bl.date)+6).attr("y",y(bl.value)+4).attr("fill","#2a9d5c").attr("font-size",14).attr("font-weight",800).attr("opacity",0).text(`$${bl.value.toFixed(0)}`).transition().delay(1100).duration(300).attr("opacity",1);
+  g.append("text").attr("x",x(bl.date)+6).attr("y",y(bl.value)+4).attr("fill",SELECTED_ASSET_COLOR).attr("font-size",14).attr("font-weight",800).attr("opacity",0).text(`Best $${bl.value.toFixed(0)}`).transition().delay(1100).duration(300).attr("opacity",1);
   g.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(6)).call(gx => gx.select(".domain").attr("stroke","#eee"));
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`)).call(gx => gx.select(".domain").attr("stroke","#eee"));
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+40).attr("text-anchor","middle").text("Date");
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-48).attr("text-anchor","middle").text("Value of $100");
 }
