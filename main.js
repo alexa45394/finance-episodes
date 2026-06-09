@@ -341,7 +341,7 @@ let wideData    = [];
 let checkedAssets = new Set(["S&P 500"]);
 let useLogScale   = false;
 let longRevealIdx = 0;
-let longChartState = null; // stores live SVG references so continue animates forward instead of redrawing
+let longChartState = null; // stores live SVG refs so "continue" animates forward
 let state = { episode: "Dot-Com Crash", asset: "Nasdaq 100", currentSlide: 1, selectedQuiz: null };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -784,20 +784,46 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
         .transition().duration(DURATION).ease(ease)
         .attr("x", xFull(years.start) + 5);
 
-      // 6. Track red dot using DATA, not getPointAtLength on a transitioning path.
-      //    clipPx moves from 0 → w over DURATION using easeLinear.
-      //    We invert that pixel position through xFull to get the year, then
-      //    look up the real value and use y(value) for the dot's cy.
-      const bisectYr = d3.bisector(d => d.year).left;
+      // 6. Correct dot tracking — two phases, no getPointAtLength.
+      //
+      // The D3 path transition linearly interpolates coordinates: at time t,
+      // year Y sits at x = xInit(Y) + t*(xFull(Y) - xInit(Y)).
+      //
+      // Phase 1 (t < t_cross): epLine's compressing right end is ahead of
+      //   the clip. Dot rides that end — x decreases from w to xFull(initMaxYear),
+      //   y stays at initMaxYear's fixed value.
+      //
+      // Phase 2 (t >= t_cross): clip overtakes epLine's end. Dot rides the
+      //   clip frontier. Inverting the intermediate-scale formula gives the
+      //   exact year at the clip pixel, so dot sits precisely on the line.
+      const bisectYr   = d3.bisector(d => d.year).left;
+      const initRange  = initMaxYear - startYear;   // e.g. 5 for Dot-Com Crash
+      const fullRange  = fullMaxYear - startYear;   // e.g. 25
+      const xFull_initPx = xFull(initMaxYear);      // pixel where initMaxYear sits in xFull
+      const initMaxVal = lineData[lineData.length - 1].value;
+      // t where clip (t*w) catches epLine's end (w + t*(xFull_initPx - w))
+      const t_cross = w / (2 * w - xFull_initPx);
+
       d3.timer(elapsed => {
-        const t      = Math.min(elapsed / DURATION, 1);
-        const clipPx = t * w;
-        const visYear = xFull.invert(clipPx);
-        const i = Math.min(bisectYr(fullLine, visYear, 1), fullLine.length - 1);
-        const val = fullLine[i].value;
-        endDot.attr("cx", clipPx).attr("cy", y(val)).style("opacity", 1);
-        endLabel.attr("x", clipPx + 7).attr("y", y(val) + 4)
-          .text(`$${val}`).style("opacity", 1);
+        const t = Math.min(elapsed / DURATION, 1);
+        let dotX, dotVal;
+
+        if (t < t_cross) {
+          // Phase 1: dot at epLine's compressing end
+          dotX   = w + t * (xFull_initPx - w);
+          dotVal = initMaxVal;
+        } else {
+          // Phase 2: dot at clip frontier — solve xInterp(Y,t) = t*w for Y
+          dotX = t * w;
+          const divisor  = (1 - t) / initRange + t / fullRange;
+          const clipYear = divisor > 0 ? (t / divisor + startYear) : fullMaxYear;
+          const i = Math.min(bisectYr(fullLine, clipYear, 1), fullLine.length - 1);
+          dotVal = fullLine[i].value;
+        }
+
+        endDot.attr("cx", dotX).attr("cy", y(dotVal)).style("opacity", 1);
+        endLabel.attr("x", dotX + 7).attr("y", y(dotVal) + 4)
+          .text(`$${dotVal}`).style("opacity", 1);
         if (t >= 1) return true;
       });
 
@@ -877,9 +903,7 @@ function drawMainChart() {
   g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-50).attr("text-anchor","middle").text("Value of your original $100");
 
   const tooltip = d3.select("#tooltip");
-  const hoverLine = g.append("line").attr("y1",0).attr("y2",h)
-    .attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3")
-    .style("opacity",0).style("pointer-events","none");
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3").style("opacity",0).style("pointer-events","none");
   const dot    = g.append("circle").attr("r",5).attr("fill",lineColor).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const spyDot = g.append("circle").attr("r",5).attr("fill","#111").attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
@@ -1072,9 +1096,10 @@ function drawOldVsNewChart() {
   });
 
   const tooltip = d3.select("#tooltip");
-  const crosshair = g.append("line").attr("y1",0).attr("y2",H).attr("stroke","#ddd").attr("stroke-dasharray","3 3").style("opacity",0);
-  const dotOld = g.append("circle").attr("r",4).attr("fill",OLD_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
-  const dotNew = g.append("circle").attr("r",4).attr("fill",NEW_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const crosshair = g.append("line").attr("y1",0).attr("y2",H)
+    .attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3").style("opacity",0);
+  const dotOld = g.append("circle").attr("r",5).attr("fill",OLD_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const dotNew = g.append("circle").attr("r",5).attr("fill",NEW_MONEY_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.day).left;
 
   g.append("rect").attr("width",W).attr("height",H).attr("fill","transparent")
@@ -1088,7 +1113,7 @@ function drawOldVsNewChart() {
       if (od) { dotOld.attr("cx",xScale(od.day)).attr("cy",yScale(od.val)).style("opacity",1); }
       if (nd) { dotNew.attr("cx",xScale(nd.day)).attr("cy",yScale(nd.val)).style("opacity",1); }
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>Day ${day}</b><br/><span style="color:${OLD_MONEY_COLOR}">● Old money</span> ${od ? "$"+od.val.toFixed(1) : "—"}<br/><span style="color:${NEW_MONEY_COLOR}">● New money</span> ${nd ? "$"+nd.val.toFixed(1) : "—"}`);
+        .html(`<b>Day ${day}</b><br/><span style="color:${OLD_MONEY_COLOR}">● Old money</span> ${od ? `<b>$${od.val.toFixed(1)}</b>` : "—"}<br/><span style="color:${NEW_MONEY_COLOR}">● New money</span> ${nd ? `<b>$${nd.val.toFixed(1)}</b>` : "—"}`);
     })
     .on("mouseleave", () => { crosshair.style("opacity",0); dotOld.style("opacity",0); dotNew.style("opacity",0); tooltip.style("opacity",0); });
 }
@@ -1304,40 +1329,50 @@ function _updateContinueBtn() {
   const btn = $("continue-next-crisis");
   if (!btn) return;
   if (longRevealIdx >= episodeMeta.length - 1) {
-    btn.textContent = "Full history revealed";
-    btn.disabled = true;
-    btn.style.opacity = "0.4";
+    btn.textContent = "Full history revealed"; btn.disabled = true; btn.style.opacity = "0.4";
   } else {
     const next = episodeMeta[longRevealIdx + 1];
-    btn.textContent = `Continue into ${next.episode} →`;
-    btn.disabled = false;
-    btn.style.opacity = "1";
+    btn.textContent = `Continue into ${next.episode} →`; btn.disabled = false; btn.style.opacity = "1";
   }
 }
 
-function _drawLongCrisisBands(bandsG, xScale, h, w) {
-  let lastLabelRight = -Infinity, labelRow = 0;
+function _drawLongBands(bandsG, xScale, h, w) {
   bandsG.selectAll("*").remove();
+  let lastLabelRight = -Infinity, labelRow = 0;
   episodeMeta.slice(0, longRevealIdx + 1).forEach(ep => {
     const s = new Date(ep.start), e = new Date(ep.end);
     const x0 = Math.max(0, xScale(s)), x1 = Math.min(w, xScale(e));
     if (x1 > x0) {
-      const bw = Math.max(4, x1 - x0);
-      bandsG.append("rect").attr("x", x0).attr("y", 0).attr("width", bw).attr("height", h)
+      bandsG.append("rect").attr("x", x0).attr("y", 0).attr("width", Math.max(4, x1-x0)).attr("height", h)
         .attr("fill", "#5f8f74").attr("opacity", 0.18);
-      const shortName = ep.episode
-        .replace("Global Financial Crisis", "2008 Crisis")
-        .replace("Regional Banking Crisis", "Banking Crisis")
-        .replace("2022 Inflation Shock", "Inflation Shock");
-      if (x0 < lastLabelRight + 8) { labelRow = Math.min(labelRow + 1, 2); } else { labelRow = 0; }
-      bandsG.append("text").attr("x", x0 + 4).attr("y", -40 + labelRow * 14)
-        .attr("fill", "#006b45").attr("font-size", 10).attr("font-weight", 800).text(shortName);
-      lastLabelRight = x0 + shortName.length * 6.5;
+
+      const short = ep.episode.replace("Global Financial Crisis","2008 Crisis")
+        .replace("Regional Banking Crisis","Banking Crisis").replace("2022 Inflation Shock","Inflation Shock");
+
+      // Keep Dot-Com left-aligned, but center later episode labels over their bands.
+      // This keeps the timeline feeling like a staircase while preventing the 2023
+      // Banking Crisis label from sitting directly on top of the broader AI Rally label.
+      const labelWidth = short.length * 6.5;
+      const isDotCom = ep.episode === "Dot-Com Crash";
+      const labelX = isDotCom ? x0 + 4 : Math.max(8, Math.min(w - 8, x0 + Math.max(4, (x1 - x0) / 2)));
+      const anchor = isDotCom ? "start" : "middle";
+      const labelLeft = anchor === "middle" ? labelX - labelWidth / 2 : labelX;
+      const labelRight = anchor === "middle" ? labelX + labelWidth / 2 : labelX + labelWidth;
+
+      if (labelLeft < lastLabelRight + 8) { labelRow = Math.min(labelRow + 1, 3); }
+      else { labelRow = 0; }
+
+      bandsG.append("text")
+        .attr("x", labelX).attr("y", -40 + labelRow * 14)
+        .attr("text-anchor", anchor)
+        .attr("fill", "#006b45").attr("font-size", 10).attr("font-weight", 800)
+        .text(short);
+      lastLabelRight = labelRight;
     }
   });
 }
 
-function _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) {
+function _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) {
   labelsG.selectAll("*").remove();
   const labelData = [];
   fullSeries.forEach(s => {
@@ -1346,14 +1381,13 @@ function _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) 
     const last = vis[vis.length - 1];
     const isSpy = s.name === "S&P 500", isSelected = s.name === state.asset;
     const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
-    const ticker = ASSET_INFO[s.name]?.ticker || s.name;
-    labelData.push({ name: s.name, ticker, value: last.value, x: xScale(last.date), y: yScale(last.value), color, isSpy });
+    labelData.push({ name: s.name, ticker: ASSET_INFO[s.name]?.ticker||s.name, value: last.value, x: xScale(last.date), y: yScale(last.value), color, isSpy });
   });
   fitLabelY(labelData, 14, h).forEach(d => {
-    labelsG.append("path").attr("d", `M${d.x+2},${d.y} L${w+4},${d.y2}`)
-      .attr("stroke", d.color).attr("stroke-width", 0.7).attr("opacity", 0.45).attr("fill", "none");
-    labelsG.append("text").attr("x", w + 8).attr("y", d.y2 + 4)
-      .attr("fill", d.color).attr("font-size", 10).attr("font-weight", d.isSpy ? 800 : 700)
+    labelsG.append("path").attr("d",`M${d.x+2},${d.y} L${w+4},${d.y2}`)
+      .attr("stroke",d.color).attr("stroke-width",0.7).attr("opacity",0.45).attr("fill","none");
+    labelsG.append("text").attr("x",w+8).attr("y",d.y2+4)
+      .attr("fill",d.color).attr("font-size",10).attr("font-weight",d.isSpy?800:700)
       .text(`${d.ticker} ${fmtDollar(d.value)}`);
   });
 }
@@ -1361,13 +1395,11 @@ function _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) 
 function drawLongChart() {
   const el = $("long-chart");
   if (!el || !episodeMeta.length || !wideData.length) return;
-
   _updateContinueBtn();
   const currentEp = episodeMeta[Math.min(longRevealIdx, episodeMeta.length - 1)];
   const currentEndDate = new Date(currentEp.end);
   const titleEl = $("long-chart-title");
   if (titleEl) titleEl.textContent = longRevealIdx === 0 ? `The ${currentEp.episode}` : `Through the ${currentEp.episode}`;
-
   if (!longChartState) {
     _buildLongChart(el, currentEndDate);
   } else {
@@ -1377,117 +1409,86 @@ function drawLongChart() {
 
 function _buildLongChart(el, currentEndDate) {
   d3.select(el).selectAll("*").remove();
-
   const startDate = new Date("2000-01-01");
   const fullEndDate = new Date(episodeMeta[episodeMeta.length - 1].end);
   const selectedNames = [...checkedAssets];
-
-  // Load ALL data upfront (y scale never needs to change)
   const fullSeries = selectedNames
     .map(name => ({ name, values: longSeriesForAsset(name, startDate, fullEndDate) }))
     .filter(s => s.values.length > 0);
-
-  if (!fullSeries.length) {
-    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available.</p>`;
-    return;
-  }
+  if (!fullSeries.length) { el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available.</p>`; return; }
 
   const W = el.clientWidth || 980, H = 455;
   const margin = { top: 55, right: 138, bottom: 50, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
-
   const allVals = fullSeries.flatMap(s => s.values);
-  const maxVal = d3.max(allVals, d => d.value);
-  const minVal = d3.min(allVals, d => d.value);
+  const maxVal = d3.max(allVals, d => d.value), minVal = d3.min(allVals, d => d.value);
   const logMode = useLogScale && minVal > 0;
-
-  // X scale: current revealed range only
   const xScale = d3.scaleTime().domain([startDate, currentEndDate]).range([0, w]);
-  // Y scale: FULL range so axis never jumps when new episodes reveal
   const yScale = logMode
-    ? d3.scaleLog().domain([Math.max(10, minVal * 0.8), maxVal * 1.12]).range([h, 0])
-    : d3.scaleLinear().domain([Math.max(0, minVal * 0.86), maxVal * 1.12]).nice().range([h, 0]);
+    ? d3.scaleLog().domain([Math.max(10, minVal*0.8), maxVal*1.12]).range([h, 0])
+    : d3.scaleLinear().domain([Math.max(0, minVal*0.86), maxVal*1.12]).nice().range([h, 0]);
 
-  const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // Clip to prevent overflow when lines extend beyond current x range
-  svg.append("defs").append("clipPath").attr("id", "long-view-clip")
-    .append("rect").attr("id", "long-view-clip-rect")
-    .attr("x", 0).attr("y", -10).attr("width", w).attr("height", h + 20);
-
+  const svg = d3.select(el).append("svg").attr("width","100%").attr("viewBox",`0 0 ${W} ${H}`);
+  const g = svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+  svg.append("defs").append("clipPath").attr("id","long-view-clip")
+    .append("rect").attr("id","long-view-clip-rect").attr("x",0).attr("y",-10).attr("width",w).attr("height",h+20);
   g.append("g").call(d3.axisLeft(yScale).ticks(6).tickSize(-w).tickFormat(""))
-    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
+    .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke","#f0f0f0"); });
 
-  const bandsG = g.append("g").attr("class", "crisis-bands-g");
-  _drawLongCrisisBands(bandsG, xScale, h, w);
+  const bandsG = g.append("g").attr("class","crisis-bands-g");
+  _drawLongBands(bandsG, xScale, h, w);
 
-  if (logMode) {
-    g.append("text").attr("x", w).attr("y", 14).attr("text-anchor", "end")
-      .attr("fill", "#999").attr("font-size", 10).attr("font-style", "italic")
-      .text("Log scale — toggle off to see linear.");
-  }
+  if (logMode) g.append("text").attr("x",w).attr("y",14).attr("text-anchor","end")
+    .attr("fill","#999").attr("font-size",10).attr("font-style","italic").text("Log scale — toggle off to see linear.");
 
-  g.append("line").attr("x1", 0).attr("x2", w).attr("y1", yScale(100)).attr("y2", yScale(100))
-    .attr("stroke", "#ddd").attr("stroke-dasharray", "5,4").attr("stroke-width", 1.5);
+  g.append("line").attr("x1",0).attr("x2",w).attr("y1",yScale(100)).attr("y2",yScale(100))
+    .attr("stroke","#ddd").attr("stroke-dasharray","5,4").attr("stroke-width",1.5);
 
-  const makeLineGen = xs => d3.line()
-    .defined(d => Number.isFinite(d.value) && d.value > 0)
+  const makeLineGen = xs => d3.line().defined(d => Number.isFinite(d.value)&&d.value>0)
     .x(d => xs(d.date)).y(d => yScale(d.value)).curve(d3.curveMonotoneX);
-
-  // Lines drawn in a clipped group so future reveals stay clean
-  const linesG = g.append("g").attr("clip-path", "url(#long-view-clip)");
+  const linesG = g.append("g").attr("clip-path","url(#long-view-clip)");
   const pathMap = {};
-  const drawOrder = fullSeries.slice().sort((a, b) => (a.name === "S&P 500") - (b.name === "S&P 500"));
-
-  drawOrder.forEach(s => {
-    const isSpy = s.name === "S&P 500", isSelected = s.name === state.asset;
-    const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
-    const path = linesG.append("path").datum(s.values)
-      .attr("fill", "none").attr("stroke", color)
-      .attr("stroke-width", isSpy ? 3.2 : isSelected ? 3 : 1.9)
-      .attr("opacity", isSpy ? 1 : 0.86)
-      .attr("d", makeLineGen(xScale));
-    animatePath(path, isSpy ? 1000 : 1600);
+  fullSeries.slice().sort((a,b) => (a.name==="S&P 500")-(b.name==="S&P 500")).forEach(s => {
+    const isSpy = s.name==="S&P 500", isSelected = s.name===state.asset;
+    const color = isSpy?BENCHMARK_COLOR:isSelected?SELECTED_ASSET_COLOR:(ASSET_COLORS[s.name]||"#777");
+    const path = linesG.append("path").datum(s.values).attr("fill","none").attr("stroke",color)
+      .attr("stroke-width",isSpy?3.2:isSelected?3:1.9).attr("opacity",isSpy?1:0.86)
+      .attr("d",makeLineGen(xScale));
+    animatePath(path, isSpy?1000:1600);
     pathMap[s.name] = { path, color, isSpy };
   });
 
-  const xAxisG = g.append("g").attr("transform", `translate(0,${h})`)
-    .call(d3.axisBottom(xScale).ticks(8))
-    .call(gx => gx.select(".domain").attr("stroke", "#eee"));
-  g.append("g")
-    .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => `$${d3.format(",.0f")(d)}`))
-    .call(gx => gx.select(".domain").attr("stroke", "#eee"));
-  g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
-    .attr("x", -h / 2).attr("y", -54).attr("text-anchor", "middle")
-    .text(logMode ? "Value of $100 (log scale)" : "Value of $100 from start of data");
-  g.append("text").attr("class", "axis-label").attr("x", w / 2).attr("y", h + 42)
-    .attr("text-anchor", "middle").text("Date");
+  const xAxisG = g.append("g").attr("transform",`translate(0,${h})`)
+    .call(d3.axisBottom(xScale).ticks(8)).call(gx => gx.select(".domain").attr("stroke","#eee"));
+  g.append("g").call(d3.axisLeft(yScale).ticks(6).tickFormat(d=>`$${d3.format(",.0f")(d)}`))
+    .call(gx => gx.select(".domain").attr("stroke","#eee"));
+  g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-54)
+    .attr("text-anchor","middle").text(logMode?"Value of $100 (log scale)":"Value of $100 from start of data");
+  g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+42).attr("text-anchor","middle").text("Date");
 
-  const labelsG = g.append("g").attr("class", "end-labels-g");
-  _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, currentEndDate);
+  const labelsG = g.append("g").attr("class","end-labels-g");
+  _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, currentEndDate);
 
-  // Hover
   const tooltip = d3.select("#tooltip");
-  const hoverLine = g.append("line").attr("y1", 0).attr("y2", h)
-    .attr("stroke", "#555").attr("stroke-width", 1.5).attr("stroke-dasharray", "5 3").style("opacity", 0);
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h)
+    .attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3").style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
-  g.append("rect").attr("width", w).attr("height", h).attr("fill", "none").attr("pointer-events", "all")
+  g.append("rect").attr("width",w).attr("height",h).attr("fill","none").attr("pointer-events","all")
     .on("mousemove", function(event) {
-      const xs = longChartState ? longChartState.xScale : xScale;
-      const ed = longChartState ? longChartState.currentEndDate : currentEndDate;
+      const xs = longChartState?longChartState.xScale:xScale;
+      const ed = longChartState?longChartState.currentEndDate:currentEndDate;
       const [mx] = d3.pointer(event);
       const date = xs.invert(mx);
-      hoverLine.attr("x1", mx).attr("x2", mx).style("opacity", 1);
-      let html = `<b>${date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</b>`;
+      hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
+      let html = `<b>${date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b>`;
       fullSeries.forEach(s => {
-        const vis = s.values.filter(d => d.date <= ed);
-        const i = Math.min(bisect(vis, date, 1), vis.length - 1);
+        const vis = s.values.filter(d => d.date<=ed);
+        const i = Math.min(bisect(vis,date,1),vis.length-1);
         if (vis[i]) html += `<br/>${assetLabel(s.name)}: <b>${fmtDollar(vis[i].value)}</b>`;
       });
-      tooltip.style("opacity", 1).style("left", (event.clientX+14)+"px").style("top", (event.clientY-48)+"px").html(html);
+      tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px").html(html);
     })
-    .on("mouseleave", () => { hoverLine.style("opacity", 0); tooltip.style("opacity", 0); });
+    .on("mouseleave",() => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
 
   longChartState = { svg, g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen, xScale, currentEndDate };
 }
@@ -1500,42 +1501,36 @@ function _growLongChart(newEndDate) {
   const xNew = d3.scaleTime().domain([startDate, newEndDate]).range([0, w]);
   const newLineGen = makeLineGen(xNew);
 
-  // Expand clip to full width (lines outside current range will now slide into view)
-  d3.select("#long-view-clip-rect").attr("width", w);
+  // Step 1: fade crisis bands out (300ms)
+  bandsG.selectAll("*").transition().duration(300).style("opacity", 0)
+    .on("end", function() { d3.select(this).remove(); });
 
-  // Transition all line paths to new x scale (existing data compresses left, new data slides in from right)
-  fullSeries.forEach(({ name }) => {
-    if (pathMap[name]) {
-      pathMap[name].path.transition().duration(DURATION).ease(ease).attr("d", newLineGen);
-    }
-  });
-
-  // Transition x axis
-  xAxisG.transition().duration(DURATION).ease(ease)
-    .call(d3.axisBottom(xNew).ticks(8))
-    .call(gx => gx.select(".domain").attr("stroke", "#eee"));
-
-  // New crisis band fades in immediately at correct positions
-  const newEp = episodeMeta[longRevealIdx];
-  if (newEp) {
-    const s = new Date(newEp.start), e = new Date(newEp.end);
-    const x0 = Math.max(0, xNew(s)), x1 = Math.min(w, xNew(e));
-    if (x1 > x0) {
-      bandsG.append("rect")
-        .attr("x", x0).attr("y", 0).attr("width", Math.max(4, x1-x0)).attr("height", h)
-        .attr("fill", "#5f8f74").attr("opacity", 0)
-        .transition().duration(DURATION).ease(ease).attr("opacity", 0.18);
-    }
-  }
-
-  // After paths settle: redraw bands + end labels at correct xNew positions
+  // Step 2: after fade, animate lines + axis (delayed 350ms so fade completes first)
   setTimeout(() => {
     if (!longChartState) return;
-    _drawLongCrisisBands(bandsG, xNew, h, w);
-    _drawLongEndLabels(labelsG, fullSeries, xNew, yScale, w, h, newEndDate);
-    longChartState.xScale = xNew;
-    longChartState.currentEndDate = newEndDate;
-  }, DURATION + 80);
+
+    // Expand clip to allow new data through
+    d3.select("#long-view-clip-rect").attr("width", w);
+
+    // Transition all paths to new x scale (existing compresses left, new slides in from right)
+    fullSeries.forEach(({ name }) => {
+      if (pathMap[name]) pathMap[name].path.transition().duration(DURATION).ease(ease).attr("d", newLineGen);
+    });
+
+    // Transition x axis
+    xAxisG.transition().duration(DURATION).ease(ease)
+      .call(d3.axisBottom(xNew).ticks(8)).call(gx => gx.select(".domain").attr("stroke","#eee"));
+
+    // Step 3: after lines settle, redraw bands + labels at correct positions
+    setTimeout(() => {
+      if (!longChartState) return;
+      _drawLongBands(bandsG, xNew, h, w);
+      _drawLongLabels(labelsG, fullSeries, xNew, yScale, w, h, newEndDate);
+      longChartState.xScale = xNew;
+      longChartState.currentEndDate = newEndDate;
+    }, DURATION + 80);
+
+  }, 350);
 }
 
 function continueToNextCrisis() {
