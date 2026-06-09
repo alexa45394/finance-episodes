@@ -317,6 +317,7 @@ let episodeMeta = [];
 let wideData    = [];
 let checkedAssets = new Set(["S&P 500"]);
 let useLogScale   = false;
+let longRevealIdx = 0; // how many episodes are revealed in the long view (0 = first only)
 let state = { episode: "Dot-Com Crash", asset: "Nasdaq 100", currentSlide: 1, selectedQuiz: null };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -546,9 +547,9 @@ function goToSlide(n, shouldScroll = true) {
   });
 
   if (n === 1) drawInflationChart();
-  if (n === 2) { drawMainChart(); drawBarChart(); }
-  if (n === 3) { drawAssetInfoPanel(); drawOldVsNewChart(); }
-  if (n === 4) drawGroupSummary();
+  if (n === 2) drawAssetInfoPanel();
+  if (n === 3) { drawMainChart(); drawBarChart(); }
+  if (n === 4) { drawGroupSummary(); drawOldVsNewChart(); }
   if (n === 5) buildQuizOptions();
 
   if (shouldScroll) $("slideshow").scrollIntoView({ behavior: "smooth" });
@@ -1192,6 +1193,7 @@ function drawQuizRanking(data, highlightName) {
 
 // ── LONG VIEW SECTION ─────────────────────────────────────────────────────────
 function renderLongViewSection() {
+  longRevealIdx = 0;
   renderCheckboxes();
   drawLongChart();
 }
@@ -1220,11 +1222,11 @@ function renderCheckboxes() {
   });
 }
 
-function longSeriesForAsset(assetName, startDate) {
+function longSeriesForAsset(assetName, startDate, endDate) {
   const ticker = ASSET_INFO[assetName]?.ticker;
   if (!ticker || !wideData.length) return [];
   const rows = wideData
-    .filter(d => d.date >= startDate && Number.isFinite(d[ticker]))
+    .filter(d => d.date >= startDate && d.date <= endDate && Number.isFinite(d[ticker]))
     .sort((a, b) => a.date - b.date);
   if (!rows.length) return [];
   const first = rows[0][ticker];
@@ -1236,20 +1238,41 @@ function drawLongChart() {
   if (!el) return;
   d3.select(el).selectAll("*").remove();
 
-  const epMeta = episodeMeta.find(d => d.episode === state.episode);
-  if (!epMeta) return;
-  const startDate = new Date(epMeta.start);
+  if (!episodeMeta.length) return;
 
+  // Always start from before the first crisis; end at the last revealed episode
+  const startDate = new Date("2000-01-01");
+  const revealedEpisode = episodeMeta[Math.min(longRevealIdx, episodeMeta.length - 1)];
+  const endDate = new Date(revealedEpisode.end);
+
+  // Update title
   const titleEl = $("long-chart-title");
-  if (titleEl) titleEl.textContent = `From ${state.episode} onward`;
+  if (titleEl) titleEl.textContent = longRevealIdx === 0
+    ? `The ${revealedEpisode.episode}`
+    : `Through the ${revealedEpisode.episode}`;
 
-  // Build series for each checked asset
+  // Update continue button
+  const continueBtn = $("continue-next-crisis");
+  if (continueBtn) {
+    if (longRevealIdx >= episodeMeta.length - 1) {
+      continueBtn.textContent = "Full history revealed";
+      continueBtn.disabled = true;
+      continueBtn.style.opacity = "0.4";
+    } else {
+      const next = episodeMeta[longRevealIdx + 1];
+      continueBtn.textContent = `Continue into ${next.episode} →`;
+      continueBtn.disabled = false;
+      continueBtn.style.opacity = "1";
+    }
+  }
+
+  // Build series for each checked asset, clipped to revealed window
   const series = [...checkedAssets]
-    .map(name => ({ name, values: longSeriesForAsset(name, startDate) }))
+    .map(name => ({ name, values: longSeriesForAsset(name, startDate, endDate) }))
     .filter(s => s.values.length > 0);
 
   if (!series.length) {
-    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No long-term data available. Make sure asset_prices_wide.csv is in the data folder.</p>`;
+    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available. Make sure asset_prices_wide.csv is in the data folder.</p>`;
     return;
   }
 
@@ -1258,7 +1281,7 @@ function drawLongChart() {
   const margin = { top: 28, right: 110, bottom: 50, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
-  const x = d3.scaleTime().domain([startDate, d3.max(all, d => d.date)]).range([0, w]);
+  const x = d3.scaleTime().domain([startDate, endDate]).range([0, w]);
   const maxVal = d3.max(all, d => d.value);
   const minVal = d3.min(all, d => d.value);
   const y = useLogScale && minVal > 0
@@ -1268,12 +1291,12 @@ function drawLongChart() {
   const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Grid lines
+  // Grid
   g.append("g").call(d3.axisLeft(y).ticks(6).tickSize(-w).tickFormat(""))
     .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
 
-  // Crisis window bands
-  episodeMeta.forEach(ep => {
+  // Only show bands for revealed episodes
+  episodeMeta.slice(0, longRevealIdx + 1).forEach(ep => {
     const s = new Date(ep.start), e = new Date(ep.end);
     if (e < startDate) return;
     const x0 = Math.max(0, x(s)), x1 = Math.min(w, x(e));
@@ -1294,9 +1317,6 @@ function drawLongChart() {
     .defined(d => Number.isFinite(d.value) && d.value > 0)
     .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
-  // One shared defs block for clip paths
-  const defs = svg.append("defs");
-
   series.forEach((s, si) => {
     const isSpy = s.name === "S&P 500";
     const isSelected = s.name === state.asset;
@@ -1309,14 +1329,7 @@ function drawLongChart() {
       .attr("opacity", isSpy ? 1 : 0.92)
       .attr("d", lineGen);
 
-    if (isSpy) {
-      animatePath(path, 1200);
-    } else {
-      const len = path.node().getTotalLength();
-      path.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
-        .transition().duration(1800).delay(200)
-        .ease(d3.easeCubicInOut).attr("stroke-dashoffset", 0);
-    }
+    animatePath(path, isSpy ? 1200 : 1800);
 
     const last = s.values[s.values.length - 1];
     const ticker = ASSET_INFO[s.name]?.ticker || s.name;
@@ -1334,10 +1347,10 @@ function drawLongChart() {
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
     .attr("x", -h / 2).attr("y", -54).attr("text-anchor", "middle")
-    .text("Value of $100 from first available date");
+    .text("Value of $100 from start of data");
   g.append("text").attr("class", "axis-label")
     .attr("x", w / 2).attr("y", h + 42).attr("text-anchor", "middle")
-    .text("Date (shown in quarterly-style ticks for readability)");
+    .text("Date");
 
   // Hover tooltip
   const tooltip = d3.select("#tooltip");
@@ -1364,18 +1377,10 @@ function drawLongChart() {
 }
 
 function continueToNextCrisis() {
-  const idx = episodeMeta.findIndex(d => d.episode === state.episode);
-  const next = episodeMeta[(idx + 1) % episodeMeta.length];
-  state.episode = next.episode;
-  const epDd = $("episode-dropdown");
-  if (epDd) epDd.value = state.episode;
-  ensureAssetAvailable();
-  refreshAssetDropdown();
-  updateInflationBlurb();
-  drawInflationChart();
-  renderLongViewSection();
-  renderTable();
-  $("long-view-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (longRevealIdx < episodeMeta.length - 1) {
+    longRevealIdx++;
+    drawLongChart();
+  }
 }
 
 // ── MARKET TABLE / CLICKABLE ASSET GUIDE ─────────────────────────────────────

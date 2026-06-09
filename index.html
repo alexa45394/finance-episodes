@@ -54,12 +54,25 @@
           <div class="slide-dots">
             <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
           </div>
-          <button class="nav-btn next" data-direction="next" type="button">See the investment →</button>
+          <button class="nav-btn next" data-direction="next" type="button">What did you pick? →</button>
         </div>
       </section>
 
-      <!-- Slide 2: $100 chart + bar chart -->
+      <!-- Slide 2: Asset info (What you picked) -->
       <section class="slide" id="slide-2">
+        <div class="slide-label">What you picked</div>
+        <div id="asset-info-panel"></div>
+        <div class="slide-nav">
+          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
+          <div class="slide-dots">
+            <span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <button class="nav-btn next" data-direction="next" type="button">See what happened →</button>
+        </div>
+      </section>
+
+      <!-- Slide 3: $100 chart + bar chart -->
+      <section class="slide" id="slide-3">
         <div class="slide-label">The selected trade</div>
         <h2 id="slide-2-title">Loading...</h2>
         <div class="chart-container large">
@@ -77,16 +90,18 @@
         <div class="slide-nav">
           <button class="nav-btn back" data-direction="back" type="button">← Back</button>
           <div class="slide-dots">
-            <span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span>
           </div>
-          <button class="nav-btn next" data-direction="next" type="button">What is this asset? →</button>
+          <button class="nav-btn next" data-direction="next" type="button">The big picture →</button>
         </div>
       </section>
 
-      <!-- Slide 3: Asset info + old vs new -->
-      <section class="slide" id="slide-3">
-        <div class="slide-label">The context</div>
-        <div id="asset-info-panel"></div>
+      <!-- Slide 4: Group summary + old vs new chart -->
+      <section class="slide" id="slide-4">
+        <div class="slide-label">The big picture</div>
+        <h2 id="slide-4-title">Old money vs new money</h2>
+        <p class="slide-description" id="slide-4-desc"></p>
+        <div class="group-summary" id="group-summary"></div>
         <div class="chart-container">
           <div class="old-vs-new-header">
             <div>
@@ -100,21 +115,6 @@
           </div>
           <div id="old-vs-new-chart"></div>
         </div>
-        <div class="slide-nav">
-          <button class="nav-btn back" data-direction="back" type="button">← Back</button>
-          <div class="slide-dots">
-            <span class="dot"></span><span class="dot"></span><span class="dot active"></span><span class="dot"></span><span class="dot"></span>
-          </div>
-          <button class="nav-btn next" data-direction="next" type="button">The big picture →</button>
-        </div>
-      </section>
-
-      <!-- Slide 4: Group summary -->
-      <section class="slide" id="slide-4">
-        <div class="slide-label">The big picture</div>
-        <h2 id="slide-4-title">Old money vs new money</h2>
-        <p class="slide-description" id="slide-4-desc"></p>
-        <div class="group-summary" id="group-summary"></div>
         <div class="slide-nav">
           <button class="nav-btn back" data-direction="back" type="button">← Back</button>
           <div class="slide-dots">
@@ -150,7 +150,7 @@
         <div>
           <p class="eyebrow">After the episode</p>
           <h2>Follow the trade beyond one episode.</h2>
-          <p class="section-copy">This starts at the selected episode and follows the assets forward. SPY stays locked on as the benchmark. The green bands mark crisis windows, and the date axis uses spaced quarterly-style ticks so the long view stays readable.</p>
+          <p class="section-copy">Follow your asset from the very beginning — starting with the Dot-Com Crash. Each time you click "Continue," the timeline grows to reveal the next crisis. SPY stays locked on as the benchmark.</p>
         </div>
         <button id="back-to-selected-trade" class="nav-btn back" type="button">Back to selected trade</button>
       </div>
@@ -249,7 +249,7 @@
       <h2>About this project</h2>
       <p>For our project prototype, we have the general structure for our webpage. At the top of the webpage is a hook that contextualizes the topic of our final project and will lead the viewer into learning a bit about finance in a practical manner through exploring how assets perform under different episodes or crises. To execute this, we first have the viewer select a specific asset to explore through visualizing the value of this asset when someone invests $100 on it. Furthermore, this asset is compared to other assets in a bar chart in terms of their return rates for the selected episode to determine how this asset performed relative to other assets.</p>
       <p>After that, we have the viewer learn about that specific asset they chose from the beginning and discover whether it's an old or new money asset. Then we draw a comparison on how old money and new money assets on average fared off during a specific episode. After exploring this, we then have a section where the user can explore all the individual assets as they please by clicking on the specific asset they want to look at specifically.</p>
-      <p>At the bottom of the webpsage, we have a quiz for the viewer to take in order to gauge where they are in learning about our topic and inform them of any misconceptions they may have if they selected the incorrect answer.</p>
+      <p>At the bottom of the webpage, we have a quiz for the viewer to take in order to gauge where they are in learning about our topic and inform them of any misconceptions they may have if they selected the incorrect answer.</p>
       <p>The most challenging part to tackle for our project's design is definitely the interactivity components. We have to ensure that the interaction doesn't only function properly but that it's effective in the way we are telling a story about our topic. We need to think of the correct interactive components regarding our specific project because there are many ways to go about interactive elements but we have to think of the ones that will best keep our users engaged and fit in with our storytelling or narrative. Furthermore, because interaction is a big part of the exploration aspect of this project, being able to nail the interactivity of our webpage will be crucial so that users can learn and gain insight about our project.</p>
       <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario.</p>
     </section>
