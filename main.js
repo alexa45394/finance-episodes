@@ -895,7 +895,11 @@ function drawMainChart() {
   g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-50).attr("text-anchor","middle").text("Value of your original $100");
 
   const tooltip = d3.select("#tooltip");
-  const dot = g.append("circle").attr("r",5).attr("fill",lineColor).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h)
+    .attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3")
+    .style("opacity",0).style("pointer-events","none");
+  const dot    = g.append("circle").attr("r",5).attr("fill",lineColor).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const spyDot = g.append("circle").attr("r",5).attr("fill","#111").attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
   g.append("rect").attr("width",w).attr("height",h).attr("fill","none").attr("pointer-events","all")
     .on("mousemove", function(event) {
@@ -905,12 +909,15 @@ function drawMainChart() {
       const d = filtered[i];
       const si = spy.length ? Math.min(bisect(spy, date, 1), spy.length - 1) : -1;
       const sd = si >= 0 ? spy[si] : null;
+      hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
       dot.attr("cx", x(d.date)).attr("cy", y(d.indexed_100)).style("opacity", 1);
+      if (sd) spyDot.attr("cx", x(sd.date)).attr("cy", y(sd.indexed_100)).style("opacity", 1);
+      else spyDot.style("opacity", 0);
       tooltip.style("opacity",1)
         .style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${assetLabel(state.asset)}</b><br/>${d.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}<br/>$100 became <b>$${d.indexed_100.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">SPY benchmark: $${sd.indexed_100.toFixed(2)}</span>` : ""}`);
+        .html(`<b>${assetLabel(state.asset)}</b><br/>${d.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}<br/>$100 became <b>$${d.indexed_100.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">SPY benchmark: <b>$${sd.indexed_100.toFixed(2)}</b></span>` : ""}`);
     })
-    .on("mouseleave", () => { dot.style("opacity",0); tooltip.style("opacity",0); });
+    .on("mouseleave", () => { hoverLine.style("opacity",0); dot.style("opacity",0); spyDot.style("opacity",0); tooltip.style("opacity",0); });
 }
 
 // ── SLIDE 2: BAR CHART ────────────────────────────────────────────────────────
@@ -1352,14 +1359,13 @@ function drawLongChart() {
 
   const all = series.flatMap(s => s.values);
   const W = el.clientWidth || 980, H = 455;
-  const margin = { top: 34, right: 138, bottom: 50, left: 68 };
+  const margin = { top: 55, right: 138, bottom: 50, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
   const x = d3.scaleTime().domain([startDate, endDate]).range([0, w]);
   const maxVal = d3.max(all, d => d.value);
   const minVal = d3.min(all, d => d.value);
-  const extreme = minVal > 0 && maxVal / Math.max(minVal, 1) > 25;
-  const logMode = (useLogScale || extreme) && minVal > 0;
+  const logMode = useLogScale && minVal > 0;
   const y = logMode
     ? d3.scaleLog().domain([Math.max(10, minVal * 0.8), maxVal * 1.12]).range([h, 0])
     : d3.scaleLinear().domain([Math.max(0, minVal * 0.86), maxVal * 1.12]).nice().range([h, 0]);
@@ -1370,8 +1376,10 @@ function drawLongChart() {
   g.append("g").call(d3.axisLeft(y).ticks(6).tickSize(-w).tickFormat(""))
     .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
 
-  // Crisis windows: keep these visually tied to the timeline, even if the labels get close.
-  // The shaded bands are part of the story, so visibility matters more than perfect label spacing.
+  // Crisis bands + labels — labels sit ABOVE the chart (negative y) to avoid data overlap.
+  // Stagger into up to 3 rows when episodes cluster together.
+  let lastLabelRight = -Infinity;
+  let labelRow = 0;
   episodeMeta.slice(0, longRevealIdx + 1).forEach((ep) => {
     const s = new Date(ep.start), e = new Date(ep.end);
     if (e < startDate) return;
@@ -1381,29 +1389,33 @@ function drawLongChart() {
       const bw = Math.max(4, x1 - x0);
       g.append("rect")
         .attr("class", "long-crisis-band")
-        .attr("x", x0)
-        .attr("y", 0)
-        .attr("width", bw)
-        .attr("height", h)
-        .attr("fill", "#5f8f74")
-        .attr("opacity", 0.18);
-      const labelCentered = ep.episode !== "Dot-Com Crash";
+        .attr("x", x0).attr("y", 0).attr("width", bw).attr("height", h)
+        .attr("fill", "#5f8f74").attr("opacity", 0.18);
+
+      const shortName = ep.episode
+        .replace("Global Financial Crisis", "2008 Crisis")
+        .replace("Regional Banking Crisis", "Banking Crisis")
+        .replace("2022 Inflation Shock", "Inflation Shock");
+      const estWidth = shortName.length * 6.5;
+      if (x0 < lastLabelRight + 8) {
+        labelRow = Math.min(labelRow + 1, 2);
+      } else {
+        labelRow = 0;
+      }
+      const labelY = -40 + labelRow * 14;
       g.append("text")
         .attr("class", "long-crisis-label")
-        .attr("x", labelCentered ? x0 + bw / 2 : x0 + 6)
-        .attr("y", 15)
-        .attr("text-anchor", labelCentered ? "middle" : "start")
-        .attr("fill", "#006b45")
-        .attr("font-size", 10)
-        .attr("font-weight", 800)
-        .text(ep.episode);
+        .attr("x", x0 + 4).attr("y", labelY)
+        .attr("fill", "#006b45").attr("font-size", 10).attr("font-weight", 800)
+        .text(shortName);
+      lastLabelRight = x0 + estWidth;
     }
   });
 
   if (logMode) {
-    g.append("text").attr("x", w).attr("y", -12).attr("text-anchor", "end")
-      .attr("fill", "#777").attr("font-size", 10).attr("font-style", "italic")
-      .text("Log scale used so extreme gains do not flatten the rest.");
+    g.append("text").attr("x", w).attr("y", 14).attr("text-anchor", "end")
+      .attr("fill", "#999").attr("font-size", 10).attr("font-style", "italic")
+      .text("Log scale — toggle off to see linear.");
   }
 
   g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(100)).attr("y2", y(100))
@@ -1649,25 +1661,35 @@ function buildPortfolioBuilder() {
     });
   }
 
-  // Asset pills
+  // Asset pills — old money row first, new money row second
   const pillContainer = $("pb-asset-pills");
-  assets.forEach(name => {
-    const info = ASSET_INFO[name];
-    const isNew = info?.group === "New money";
-    const pill = document.createElement("button");
-    pill.className = `pb-pill ${isNew ? "pb-pill-new" : "pb-pill-old"}`;
-    pill.textContent = assetLabel(name);
-    pill.dataset.asset = name;
-    pill.addEventListener("click", () => togglePBAsset(name));
-    pillContainer.appendChild(pill);
-  });
+  const oldAssets = assets.filter(name => ASSET_INFO[name]?.group !== "New money");
+  const newAssets = assets.filter(name => ASSET_INFO[name]?.group === "New money");
+
+  const makeRow = (list, rowClass) => {
+    const row = document.createElement("div");
+    row.className = `pb-pill-row ${rowClass}`;
+    list.forEach(name => {
+      const isNew = ASSET_INFO[name]?.group === "New money";
+      const pill = document.createElement("button");
+      pill.className = `pb-pill ${isNew ? "pb-pill-new" : "pb-pill-old"}`;
+      pill.textContent = assetLabel(name);
+      pill.dataset.asset = name;
+      pill.addEventListener("click", () => togglePBAsset(name));
+      row.appendChild(pill);
+    });
+    return row;
+  };
+
+  pillContainer.appendChild(makeRow(oldAssets, "pb-row-old"));
+  pillContainer.appendChild(makeRow(newAssets, "pb-row-new"));
 }
 
 function togglePBAsset(name) {
   if (PB.selected.has(name)) { PB.selected.delete(name); delete PB.weights[name]; }
   else { PB.selected.add(name); }
   PB.showBest = false;
-  document.querySelectorAll(".pb-pill").forEach(p => p.classList.toggle("pb-pill-active", PB.selected.has(p.dataset.asset)));
+  document.querySelectorAll(".pb-pill-row .pb-pill").forEach(p => p.classList.toggle("pb-pill-active", PB.selected.has(p.dataset.asset)));
   updatePBCount();
   rebuildWeightSliders();
   renderPBChart();
@@ -1851,7 +1873,9 @@ function renderPBChart() {
   g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-48).attr("text-anchor","middle").text("Value of $100");
 
   const tooltip = d3.select("#tooltip");
-  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#e0e0e0").attr("stroke-dasharray","3 3").style("opacity",0);
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3").style("opacity",0);
+  const portDot  = g.append("circle").attr("r",5).attr("fill",SELECTED_ASSET_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const spyDotPB = g.append("circle").attr("r",5).attr("fill",BENCHMARK_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
   g.append("rect").attr("width",w).attr("height",h).attr("fill","none").attr("pointer-events","all")
     .on("mousemove", function(event) {
@@ -1862,10 +1886,13 @@ function renderPBChart() {
       const pd = portfolioSeries[pi];
       const sd = si >= 0 ? spSeries[si] : null;
       hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
+      portDot.attr("cx",x(pd.date)).attr("cy",y(pd.value)).style("opacity",1);
+      if (sd) spyDotPB.attr("cx",x(sd.date)).attr("cy",y(sd.value)).style("opacity",1);
+      else spyDotPB.style("opacity",0);
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${pd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Your portfolio</span> <b>$${pd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> $${sd.value.toFixed(2)}` : ""}`);
+        .html(`<b>${pd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Your portfolio</span> <b>$${pd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> <b>$${sd.value.toFixed(2)}</b>` : ""}`);
     })
-    .on("mouseleave", () => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
+    .on("mouseleave", () => { hoverLine.style("opacity",0); portDot.style("opacity",0); spyDotPB.style("opacity",0); tooltip.style("opacity",0); });
 
   if (legendEl) legendEl.innerHTML = `<span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${SELECTED_ASSET_COLOR}"></span>Your portfolio</span><span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${BENCHMARK_COLOR}"></span>S&amp;P 500</span>`;
 }
@@ -1993,7 +2020,9 @@ function renderBestCombo() {
   g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-48).attr("text-anchor","middle").text("Value of $100");
 
   const tooltip = d3.select("#tooltip");
-  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#d7d2c8").attr("stroke-dasharray","3 3").style("opacity",0);
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#555").attr("stroke-width",1.5).attr("stroke-dasharray","5 3").style("opacity",0);
+  const bestDot  = g.append("circle").attr("r",5).attr("fill",SELECTED_ASSET_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
+  const spyDotBC = g.append("circle").attr("r",5).attr("fill",BENCHMARK_COLOR).attr("stroke","white").attr("stroke-width",2).style("opacity",0);
   const bisect = d3.bisector(d => d.date).left;
   g.append("rect").attr("width",w).attr("height",h).attr("fill","none").attr("pointer-events","all")
     .on("mousemove", function(event) {
@@ -2004,8 +2033,11 @@ function renderBestCombo() {
       const bd = portfolioSeries[bi];
       const sd = si >= 0 ? spSeries[si] : null;
       hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
+      bestDot.attr("cx",x(bd.date)).attr("cy",y(bd.value)).style("opacity",1);
+      if (sd) spyDotBC.attr("cx",x(sd.date)).attr("cy",y(sd.value)).style("opacity",1);
+      else spyDotBC.style("opacity",0);
       tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
-        .html(`<b>${bd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Best mix</span> <b>$${bd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> $${sd.value.toFixed(2)}` : ""}`);
+        .html(`<b>${bd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Best mix</span> <b>$${bd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> <b>$${sd.value.toFixed(2)}</b>` : ""}`);
     })
-    .on("mouseleave", () => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
+    .on("mouseleave", () => { hoverLine.style("opacity",0); bestDot.style("opacity",0); spyDotBC.style("opacity",0); tooltip.style("opacity",0); });
 }

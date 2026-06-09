@@ -313,8 +313,17 @@ td { border-bottom: 1px solid #ddd; padding: 12px 8px; }
 
 /* ── CHART HINT (inflation click-to-expand) ── */
 .chart-hint {
-  text-align: center; font-size: .82rem; color: #aaa; margin: 8px 0 0;
-  font-style: italic; cursor: pointer;
+  text-align: center;
+  font-size: .92rem;
+  color: #0b6f45;
+  font-weight: 600;
+  margin: 14px 0 0;
+  cursor: pointer;
+  padding: 10px 16px;
+  border: 1px solid #b8ddc9;
+  border-radius: 4px;
+  background: #f2f9f5;
+  letter-spacing: .01em;
 }
 
 /* ── LEGEND DOTS (old vs new chart) ── */
@@ -410,6 +419,12 @@ input#pb-year-slider::-webkit-slider-thumb { appearance:none; width:20px; height
 .pb-year-display { font-family:"Libre Baskerville",Georgia,serif; font-size:1.6rem; font-weight:700; color:#1a1a1a; min-width:54px; text-align:right; }
 .pb-asset-pills { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
 .pb-pill { border:1px solid #ddd; background:#fff; padding:8px 14px; font-size:.85rem; cursor:pointer; border-radius:100px; transition:all .15s; }
+.pb-pill-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+.pb-pill-row:last-child { margin-bottom:0; }
+.pb-pill-key { font-size:.78rem; color:#888; margin-top:9px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pb-pill-key-swatch { display:inline-block; width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.pb-pill-key-new { background:#0b6f45; }
+.pb-pill-key-old { background:#666c70; }
 .pb-pill-old { border-color:#666c70; color:#555; }
 .pb-pill-new { border-color:#0b6f45; color:#0b6f45; }
 .pb-pill-active.pb-pill-old { background:#666c70; color:#fff; }
@@ -492,7 +507,7 @@ input#pb-year-slider::-webkit-slider-thumb { appearance:none; width:20px; height
   display: flex;
   align-items: center;
   gap: 8px;
-  white-space: nowrap;
+  white-space: normal;
   max-width: 220px;
 }
 .scale-toggle input { accent-color: #2a9d5c; }
