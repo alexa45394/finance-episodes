@@ -338,6 +338,16 @@ function animatePath(path, duration = 1400) {
     .transition().duration(duration).ease(d3.easeQuadInOut).attr("stroke-dashoffset", 0);
 }
 
+// Compute a proportional stroke-dasharray so the visible dashes appear at a
+// consistent pixel width no matter how wiggly (and therefore how long) the path is.
+// dashPx / gapPx are the desired visual pixel sizes on screen.
+function spyDash(pathNode, chartW, dashPx = 16, gapPx = 7) {
+  const totalLen = pathNode.getTotalLength();
+  if (!totalLen || !chartW) return "6 3";
+  const r = totalLen / chartW;
+  return `${(dashPx * r).toFixed(1)} ${(gapPx * r).toFixed(1)}`;
+}
+
 // ── DATA LOAD ─────────────────────────────────────────────────────────────────
 Promise.all([
   d3.csv("data/market_crisis_data.csv"),
@@ -421,9 +431,15 @@ function initDropdowns() {
   epDd.selectAll("option").data(episodeMeta).join("option")
     .attr("value", d => d.episode)
     .text(d => {
-      if (d.episode === "Global Financial Crisis") return "2008 Crisis (2007–2009)";
-      if (d.episode === "Regional Banking Crisis")  return "Banking Crisis (2023)";
-      return d.episode;
+      const startYear = new Date(d.start).getFullYear();
+      const endYear   = new Date(d.end).getFullYear();
+      const yearStr   = startYear === endYear ? `${startYear}` : `${startYear}–${endYear}`;
+      const nameMap   = {
+        "Global Financial Crisis": "2008 Crisis",
+        "Regional Banking Crisis":  "Banking Crisis",
+      };
+      const name = nameMap[d.episode] || d.episode;
+      return `${name} (${yearStr})`;
     });
   epDd.property("value", state.episode);
 
@@ -452,12 +468,18 @@ function initDropdowns() {
   });
 
   $("shuffle-assets-btn")?.addEventListener("click", () => {
+    const selectable = dropdownAssetsForEpisode().filter(
+      a => availabilityStatus(a, state.episode).kind !== "missing"
+    );
+    if (!selectable.length) return;
+    const pick = selectable[Math.floor(Math.random() * selectable.length)];
+    state.asset = pick;
     const assetDd = $("asset-dropdown");
-    const opts = [...assetDd.options];
-    for (let i = opts.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      assetDd.appendChild(opts[j]);
-    }
+    if (assetDd) assetDd.value = pick;
+    checkedAssets.add("S&P 500");
+    checkedAssets.add(pick);
+    if ($("slideshow").classList.contains("visible")) goToSlide(state.currentSlide, false);
+    renderLongViewSection();
   });
 
   $("begin-btn").addEventListener("click", () => {
@@ -821,7 +843,7 @@ function drawMainChart() {
 
   if (spy.length) {
     const spyPath = g.append("path").datum(spy).attr("fill","none").attr("stroke",BENCHMARK_COLOR)
-      .attr("stroke-width", 2.5).attr("stroke-dasharray","6 3").attr("opacity",0.9).attr("d", lineGen);
+      .attr("stroke-width", 2.5).attr("d", lineGen);
     animatePath(spyPath, 1000);
     const spyLast = spy[spy.length - 1];
     g.append("text").attr("x", x(spyLast.date)+7).attr("y", y(spyLast.indexed_100)+4)
@@ -1077,6 +1099,13 @@ function drawGroupSummary() {
 
 // ── SLIDE 5: QUIZ ─────────────────────────────────────────────────────────────
 function buildQuizOptions() {
+  // Reset all quiz state on every entry so a return visit starts fresh
+  state.selectedQuiz = null;
+  const result = $("quiz-result");
+  if (result) { result.innerHTML = ""; result.classList.remove("visible"); }
+  const ranking = $("quiz-ranking");
+  if (ranking) ranking.innerHTML = "";
+
   const assets = allStressTestAssets();
   const container = $("slide5-options");
   if (!container) return;
@@ -1265,9 +1294,10 @@ function drawLongChart() {
     .defined(d => Number.isFinite(d.value) && d.value > 0)
     .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
-  // Consistent per-asset colors are defined globally.
+  // One shared defs block for clip paths
+  const defs = svg.append("defs");
 
-  series.forEach(s => {
+  series.forEach((s, si) => {
     const isSpy = s.name === "S&P 500";
     const isSelected = s.name === state.asset;
     const color = isSelected && !isSpy ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
@@ -1276,18 +1306,17 @@ function drawLongChart() {
       .attr("fill", "none")
       .attr("stroke", color)
       .attr("stroke-width", isSpy ? 3 : isSelected ? 3.2 : 2)
-      .attr("stroke-dasharray", isSpy ? "6 3" : "none")
       .attr("opacity", isSpy ? 1 : 0.92)
       .attr("d", lineGen);
 
-    // Animate
-    const len = path.node().getTotalLength();
-    path.attr("stroke-dasharray", isSpy ? len : len)
-      .attr("stroke-dashoffset", len)
-      .transition().duration(isSpy ? 1200 : 1800).delay(isSpy ? 0 : 200)
-      .ease(d3.easeCubicInOut)
-      .attr("stroke-dashoffset", 0)
-      .on("end", () => { if (isSpy) path.attr("stroke-dasharray", "6 3"); });
+    if (isSpy) {
+      animatePath(path, 1200);
+    } else {
+      const len = path.node().getTotalLength();
+      path.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+        .transition().duration(1800).delay(200)
+        .ease(d3.easeCubicInOut).attr("stroke-dashoffset", 0);
+    }
 
     const last = s.values[s.values.length - 1];
     const ticker = ASSET_INFO[s.name]?.ticker || s.name;
@@ -1571,32 +1600,43 @@ function updateTotalPct() {
 
 function getPortfolioTimeSeries(selectedAssets, weights, startYear) {
   const startDate = new Date(`${startYear}-01-01`);
-  const dateSet = new Set();
-  selectedAssets.forEach(name => crisisData.filter(d => d.asset_name === name && d.date >= startDate).forEach(d => dateSet.add(d.date.getTime())));
-  const allDates = [...dateSet].sort((a,b) => a-b).map(t => new Date(t));
-  if (!allDates.length) return [];
-  const priceLookup = {};
+  const totalWeight = Object.values(weights).reduce((s, v) => s + v, 0);
+  if (totalWeight === 0 || !wideData.length) return [];
+
+  const rows = wideData.filter(d => d.date >= startDate).sort((a, b) => a.date - b.date);
+  if (!rows.length) return [];
+
+  // Find each asset's base price at its first available date on or after startDate
+  const basePrices = {};
   selectedAssets.forEach(name => {
-    const rows = crisisData.filter(d => d.asset_name === name && d.date >= startDate).sort((a,b) => a.date - b.date);
-    priceLookup[name] = new Map(rows.map(d => [d.date.getTime(), d.indexed_100]));
+    const ticker = ASSET_INFO[name]?.ticker;
+    if (!ticker) return;
+    const first = rows.find(d => Number.isFinite(d[ticker]));
+    if (first) basePrices[ticker] = first[ticker];
   });
-  const totalWeight = Object.values(weights).reduce((s,v) => s+v, 0);
-  if (totalWeight === 0) return [];
-  return allDates.map(date => {
-    let val = 0, covered = 0;
+
+  return rows.map(row => {
+    let val = 0, weightCovered = 0;
     selectedAssets.forEach(name => {
+      const ticker = ASSET_INFO[name]?.ticker;
       const w = (weights[name] || 0) / totalWeight;
-      const price = priceLookup[name].get(date.getTime());
-      if (price !== undefined) { val += w * price; covered++; }
+      if (ticker && Number.isFinite(row[ticker]) && basePrices[ticker]) {
+        val += w * (100 * row[ticker] / basePrices[ticker]);
+        weightCovered += w;
+      }
     });
-    return covered > 0 ? { date, value: val } : null;
+    // Only emit a point when all selected assets have price data
+    return weightCovered >= 0.99 ? { date: row.date, value: val } : null;
   }).filter(Boolean);
 }
 
 function getSPTimeSeries(startYear) {
   const startDate = new Date(`${startYear}-01-01`);
-  return crisisData.filter(d => d.asset_name === "S&P 500" && d.date >= startDate)
-    .sort((a,b) => a.date - b.date).map(d => ({ date: d.date, value: d.indexed_100 }));
+  const rows = wideData.filter(d => d.date >= startDate && Number.isFinite(d["SPY"]))
+    .sort((a, b) => a.date - b.date);
+  if (!rows.length) return [];
+  const base = rows[0]["SPY"];
+  return rows.map(d => ({ date: d.date, value: 100 * d["SPY"] / base }));
 }
 
 function renderPBChart() {
@@ -1628,9 +1668,10 @@ function renderPBChart() {
   g.append("text").attr("x",w+4).attr("y",y(100)+4).attr("fill","#ccc").attr("font-size",11).text("$100");
   const lineGen = d3.line().x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
   if (spSeries.length) {
-    const spPath = g.append("path").datum(spSeries).attr("fill","none").attr("stroke",BENCHMARK_COLOR).attr("stroke-width",2.8).attr("stroke-dasharray","6 3").attr("opacity",0.95).attr("d",lineGen);
-    const spLen = spPath.node().getTotalLength();
-    spPath.attr("stroke-dasharray",spLen).attr("stroke-dashoffset",spLen).transition().duration(1000).ease(d3.easeQuadInOut).attr("stroke-dashoffset",0).on("end", () => spPath.attr("stroke-dasharray","6 3"));
+    const spPath = g.append("path").datum(spSeries)
+      .attr("fill","none").attr("stroke",BENCHMARK_COLOR)
+      .attr("stroke-width",2.5).attr("d",lineGen);
+    animatePath(spPath, 1000);
     const spLast = spSeries[spSeries.length-1];
     g.append("text").attr("x",x(spLast.date)+6).attr("y",y(spLast.value)+4).attr("fill",BENCHMARK_COLOR).attr("font-size",11).attr("font-weight",600).text(`$${spLast.value.toFixed(0)}`);
   }
@@ -1661,14 +1702,17 @@ function renderPBChart() {
     })
     .on("mouseleave", () => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
 
-  if (legendEl) legendEl.innerHTML = `<span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${SELECTED_ASSET_COLOR}"></span>Your portfolio</span><span class="pb-leg-item"><span class="pb-leg-swatch pb-leg-dashed"></span>S&amp;P 500</span>`;
+  if (legendEl) legendEl.innerHTML = `<span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${SELECTED_ASSET_COLOR}"></span>Your portfolio</span><span class="pb-leg-item"><span class="pb-leg-swatch" style="background:${BENCHMARK_COLOR}"></span>S&amp;P 500</span>`;
 }
 
 function assetFinalReturn(assetName, startYear) {
+  const ticker = ASSET_INFO[assetName]?.ticker;
+  if (!ticker || !wideData.length) return null;
   const startDate = new Date(`${startYear}-01-01`);
-  const rows = crisisData.filter(d => d.asset_name === assetName && d.date >= startDate).sort((a,b) => a.date - b.date);
-  if (!rows.length) return null;
-  return rows[rows.length-1].indexed_100 / rows[0].indexed_100;
+  const rows = wideData.filter(d => d.date >= startDate && Number.isFinite(d[ticker]))
+    .sort((a, b) => a.date - b.date);
+  if (rows.length < 2) return null;
+  return rows[rows.length - 1][ticker] / rows[0][ticker];
 }
 function weightedFinalValue(assets, weights, startYear) {
   let total = 0;
@@ -1766,7 +1810,9 @@ function renderBestCombo() {
   g.append("line").attr("x1",0).attr("x2",w).attr("y1",y(100)).attr("y2",y(100)).attr("stroke","#e0e0e0").attr("stroke-dasharray","5,4");
   const lineGen = d3.line().x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
   if (spSeries.length) {
-    const sp = g.append("path").datum(spSeries).attr("fill","none").attr("stroke",BENCHMARK_COLOR).attr("stroke-width",2.8).attr("stroke-dasharray","6 3").attr("opacity",0.95).attr("d",lineGen);
+    const sp = g.append("path").datum(spSeries)
+      .attr("fill","none").attr("stroke",BENCHMARK_COLOR)
+      .attr("stroke-width",2.5).attr("d",lineGen);
     animatePath(sp, 1000);
     const sl = spSeries[spSeries.length-1];
     g.append("text").attr("x",x(sl.date)+6).attr("y",y(sl.value)+4).attr("fill",BENCHMARK_COLOR).attr("font-size",11).attr("font-weight",600).attr("opacity",0).text(`SPY $${sl.value.toFixed(0)}`).transition().delay(900).duration(300).attr("opacity",1);

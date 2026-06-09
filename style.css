@@ -24,6 +24,12 @@ main { overflow-x: hidden; }
   font-size: 1.05rem;
   line-height: 1.85;
 }
+.intro-subtext {
+  margin: 6px 0 0;
+  color: #777;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
 h1, h2, h3 {
   font-family: "Libre Baskerville", Georgia, serif;
   font-weight: 700;
