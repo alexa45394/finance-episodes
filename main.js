@@ -340,7 +340,8 @@ let episodeMeta = [];
 let wideData    = [];
 let checkedAssets = new Set(["S&P 500"]);
 let useLogScale   = false;
-let longRevealIdx = 0; // how many episodes are revealed in the long view (0 = first only)
+let longRevealIdx = 0;
+let longChartState = null; // stores live SVG references so continue animates forward instead of redrawing
 let state = { episode: "Dot-Com Crash", asset: "Nasdaq 100", currentSlide: 1, selectedQuiz: null };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -783,38 +784,19 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
         .transition().duration(DURATION).ease(ease)
         .attr("x", xFull(years.start) + 5);
 
-      // 6. Dot sits exactly at the clip boundary pixel, y read from the actual line path
-      const bisectYr   = d3.bisector(d => d.year).left;
-      const initClipPx = xFull(initMaxYear);
-      const lineNode   = extLine.node();
-      const epLineNode = epLine.node();
+      // 6. Track red dot using DATA, not getPointAtLength on a transitioning path.
+      //    clipPx moves from 0 → w over DURATION using easeLinear.
+      //    We invert that pixel position through xFull to get the year, then
+      //    look up the real value and use y(value) for the dot's cy.
+      const bisectYr = d3.bisector(d => d.year).left;
       d3.timer(elapsed => {
         const t      = Math.min(elapsed / DURATION, 1);
-        const clipPx = initClipPx + t * (w - initClipPx);
-        // Sample y directly from the SVG path at this x pixel
-        let cy;
-        try {
-          // Walk the path to find the y at clipPx
-          const totalLen = lineNode.getTotalLength();
-          let lo = 0, hi = totalLen, pt;
-          for (let iter = 0; iter < 24; iter++) {
-            const mid = (lo + hi) / 2;
-            pt = lineNode.getPointAtLength(mid);
-            if (pt.x < clipPx) lo = mid; else hi = mid;
-          }
-          cy = lineNode.getPointAtLength((lo + hi) / 2).y;
-        } catch(e) {
-          // fallback: use xFull invert + y scale
-          const visYear = xFull.invert(clipPx);
-          const i = Math.min(bisectYr(fullLine, visYear), fullLine.length - 1);
-          cy = y(fullLine[i].value);
-        }
-        // label: invert y to get value
+        const clipPx = t * w;
         const visYear = xFull.invert(clipPx);
-        const i = Math.min(bisectYr(fullLine, visYear), fullLine.length - 1);
+        const i = Math.min(bisectYr(fullLine, visYear, 1), fullLine.length - 1);
         const val = fullLine[i].value;
-        endDot.attr("cx", clipPx).attr("cy", cy).style("opacity", 1);
-        endLabel.attr("x", clipPx + 7).attr("y", cy + 4)
+        endDot.attr("cx", clipPx).attr("cy", y(val)).style("opacity", 1);
+        endLabel.attr("x", clipPx + 7).attr("y", y(val) + 4)
           .text(`$${val}`).style("opacity", 1);
         if (t >= 1) return true;
       });
@@ -1231,6 +1213,7 @@ function drawQuizRanking(data, highlightName) {
 // ── LONG VIEW SECTION ─────────────────────────────────────────────────────────
 function renderLongViewSection() {
   longRevealIdx = 0;
+  longChartState = null;
   renderCheckboxes();
   drawLongChart();
 }
@@ -1317,100 +1300,127 @@ function fitLabelY(labels, minGap, h) {
   return sorted;
 }
 
+function _updateContinueBtn() {
+  const btn = $("continue-next-crisis");
+  if (!btn) return;
+  if (longRevealIdx >= episodeMeta.length - 1) {
+    btn.textContent = "Full history revealed";
+    btn.disabled = true;
+    btn.style.opacity = "0.4";
+  } else {
+    const next = episodeMeta[longRevealIdx + 1];
+    btn.textContent = `Continue into ${next.episode} →`;
+    btn.disabled = false;
+    btn.style.opacity = "1";
+  }
+}
+
+function _drawLongCrisisBands(bandsG, xScale, h, w) {
+  let lastLabelRight = -Infinity, labelRow = 0;
+  bandsG.selectAll("*").remove();
+  episodeMeta.slice(0, longRevealIdx + 1).forEach(ep => {
+    const s = new Date(ep.start), e = new Date(ep.end);
+    const x0 = Math.max(0, xScale(s)), x1 = Math.min(w, xScale(e));
+    if (x1 > x0) {
+      const bw = Math.max(4, x1 - x0);
+      bandsG.append("rect").attr("x", x0).attr("y", 0).attr("width", bw).attr("height", h)
+        .attr("fill", "#5f8f74").attr("opacity", 0.18);
+      const shortName = ep.episode
+        .replace("Global Financial Crisis", "2008 Crisis")
+        .replace("Regional Banking Crisis", "Banking Crisis")
+        .replace("2022 Inflation Shock", "Inflation Shock");
+      if (x0 < lastLabelRight + 8) { labelRow = Math.min(labelRow + 1, 2); } else { labelRow = 0; }
+      bandsG.append("text").attr("x", x0 + 4).attr("y", -40 + labelRow * 14)
+        .attr("fill", "#006b45").attr("font-size", 10).attr("font-weight", 800).text(shortName);
+      lastLabelRight = x0 + shortName.length * 6.5;
+    }
+  });
+}
+
+function _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) {
+  labelsG.selectAll("*").remove();
+  const labelData = [];
+  fullSeries.forEach(s => {
+    const vis = s.values.filter(d => d.date <= endDate);
+    if (!vis.length) return;
+    const last = vis[vis.length - 1];
+    const isSpy = s.name === "S&P 500", isSelected = s.name === state.asset;
+    const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
+    const ticker = ASSET_INFO[s.name]?.ticker || s.name;
+    labelData.push({ name: s.name, ticker, value: last.value, x: xScale(last.date), y: yScale(last.value), color, isSpy });
+  });
+  fitLabelY(labelData, 14, h).forEach(d => {
+    labelsG.append("path").attr("d", `M${d.x+2},${d.y} L${w+4},${d.y2}`)
+      .attr("stroke", d.color).attr("stroke-width", 0.7).attr("opacity", 0.45).attr("fill", "none");
+    labelsG.append("text").attr("x", w + 8).attr("y", d.y2 + 4)
+      .attr("fill", d.color).attr("font-size", 10).attr("font-weight", d.isSpy ? 800 : 700)
+      .text(`${d.ticker} ${fmtDollar(d.value)}`);
+  });
+}
+
 function drawLongChart() {
   const el = $("long-chart");
-  if (!el) return;
+  if (!el || !episodeMeta.length || !wideData.length) return;
+
+  _updateContinueBtn();
+  const currentEp = episodeMeta[Math.min(longRevealIdx, episodeMeta.length - 1)];
+  const currentEndDate = new Date(currentEp.end);
+  const titleEl = $("long-chart-title");
+  if (titleEl) titleEl.textContent = longRevealIdx === 0 ? `The ${currentEp.episode}` : `Through the ${currentEp.episode}`;
+
+  if (!longChartState) {
+    _buildLongChart(el, currentEndDate);
+  } else {
+    _growLongChart(currentEndDate);
+  }
+}
+
+function _buildLongChart(el, currentEndDate) {
   d3.select(el).selectAll("*").remove();
 
-  if (!episodeMeta.length) return;
-
   const startDate = new Date("2000-01-01");
-  const revealedEpisode = episodeMeta[Math.min(longRevealIdx, episodeMeta.length - 1)];
-  const endDate = new Date(revealedEpisode.end);
-
-  const titleEl = $("long-chart-title");
-  if (titleEl) titleEl.textContent = longRevealIdx === 0
-    ? `The ${revealedEpisode.episode}`
-    : `Through the ${revealedEpisode.episode}`;
-
-  const continueBtn = $("continue-next-crisis");
-  if (continueBtn) {
-    if (longRevealIdx >= episodeMeta.length - 1) {
-      continueBtn.textContent = "Full history revealed";
-      continueBtn.disabled = true;
-      continueBtn.style.opacity = "0.4";
-    } else {
-      const next = episodeMeta[longRevealIdx + 1];
-      continueBtn.textContent = `Continue into ${next.episode} →`;
-      continueBtn.disabled = false;
-      continueBtn.style.opacity = "1";
-    }
-  }
-
+  const fullEndDate = new Date(episodeMeta[episodeMeta.length - 1].end);
   const selectedNames = [...checkedAssets];
-  const series = selectedNames
-    .map(name => ({ name, values: longSeriesForAsset(name, startDate, endDate) }))
+
+  // Load ALL data upfront (y scale never needs to change)
+  const fullSeries = selectedNames
+    .map(name => ({ name, values: longSeriesForAsset(name, startDate, fullEndDate) }))
     .filter(s => s.values.length > 0);
 
-  if (!series.length) {
-    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available. Make sure asset_prices_wide.csv is in the data folder.</p>`;
+  if (!fullSeries.length) {
+    el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available.</p>`;
     return;
   }
 
-  const all = series.flatMap(s => s.values);
   const W = el.clientWidth || 980, H = 455;
   const margin = { top: 55, right: 138, bottom: 50, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
-  const x = d3.scaleTime().domain([startDate, endDate]).range([0, w]);
-  const maxVal = d3.max(all, d => d.value);
-  const minVal = d3.min(all, d => d.value);
+  const allVals = fullSeries.flatMap(s => s.values);
+  const maxVal = d3.max(allVals, d => d.value);
+  const minVal = d3.min(allVals, d => d.value);
   const logMode = useLogScale && minVal > 0;
-  const y = logMode
+
+  // X scale: current revealed range only
+  const xScale = d3.scaleTime().domain([startDate, currentEndDate]).range([0, w]);
+  // Y scale: FULL range so axis never jumps when new episodes reveal
+  const yScale = logMode
     ? d3.scaleLog().domain([Math.max(10, minVal * 0.8), maxVal * 1.12]).range([h, 0])
     : d3.scaleLinear().domain([Math.max(0, minVal * 0.86), maxVal * 1.12]).nice().range([h, 0]);
 
   const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  g.append("g").call(d3.axisLeft(y).ticks(6).tickSize(-w).tickFormat(""))
+  // Clip to prevent overflow when lines extend beyond current x range
+  svg.append("defs").append("clipPath").attr("id", "long-view-clip")
+    .append("rect").attr("id", "long-view-clip-rect")
+    .attr("x", 0).attr("y", -10).attr("width", w).attr("height", h + 20);
+
+  g.append("g").call(d3.axisLeft(yScale).ticks(6).tickSize(-w).tickFormat(""))
     .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
 
-  // Crisis bands + labels — labels sit ABOVE the chart (negative y) to avoid data overlap.
-  // Stagger into up to 3 rows when episodes cluster together.
-  let lastLabelRight = -Infinity;
-  let labelRow = 0;
-  episodeMeta.slice(0, longRevealIdx + 1).forEach((ep) => {
-    const s = new Date(ep.start), e = new Date(ep.end);
-    if (e < startDate) return;
-    const x0 = Math.max(0, x(s));
-    const x1 = Math.min(w, x(e));
-    if (x1 > x0) {
-      const bw = Math.max(4, x1 - x0);
-      g.append("rect")
-        .attr("class", "long-crisis-band")
-        .attr("x", x0).attr("y", 0).attr("width", bw).attr("height", h)
-        .attr("fill", "#5f8f74").attr("opacity", 0.18);
-
-      const shortName = ep.episode
-        .replace("Global Financial Crisis", "2008 Crisis")
-        .replace("Regional Banking Crisis", "Banking Crisis")
-        .replace("2022 Inflation Shock", "Inflation Shock");
-      const estWidth = shortName.length * 6.5;
-      if (x0 < lastLabelRight + 8) {
-        labelRow = Math.min(labelRow + 1, 2);
-      } else {
-        labelRow = 0;
-      }
-      const labelY = -40 + labelRow * 14;
-      g.append("text")
-        .attr("class", "long-crisis-label")
-        .attr("x", x0 + 4).attr("y", labelY)
-        .attr("fill", "#006b45").attr("font-size", 10).attr("font-weight", 800)
-        .text(shortName);
-      lastLabelRight = x0 + estWidth;
-    }
-  });
+  const bandsG = g.append("g").attr("class", "crisis-bands-g");
+  _drawLongCrisisBands(bandsG, xScale, h, w);
 
   if (logMode) {
     g.append("text").attr("x", w).attr("y", 14).attr("text-anchor", "end")
@@ -1418,83 +1428,128 @@ function drawLongChart() {
       .text("Log scale — toggle off to see linear.");
   }
 
-  g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(100)).attr("y2", y(100))
+  g.append("line").attr("x1", 0).attr("x2", w).attr("y1", yScale(100)).attr("y2", yScale(100))
     .attr("stroke", "#ddd").attr("stroke-dasharray", "5,4").attr("stroke-width", 1.5);
 
-  const lineGen = d3.line()
+  const makeLineGen = xs => d3.line()
     .defined(d => Number.isFinite(d.value) && d.value > 0)
-    .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
+    .x(d => xs(d.date)).y(d => yScale(d.value)).curve(d3.curveMonotoneX);
 
-  const drawOrder = series.slice().sort((a,b) => (a.name === "S&P 500") - (b.name === "S&P 500"));
-  const labelData = [];
+  // Lines drawn in a clipped group so future reveals stay clean
+  const linesG = g.append("g").attr("clip-path", "url(#long-view-clip)");
+  const pathMap = {};
+  const drawOrder = fullSeries.slice().sort((a, b) => (a.name === "S&P 500") - (b.name === "S&P 500"));
 
-  drawOrder.forEach((s) => {
-    const isSpy = s.name === "S&P 500";
-    const isSelected = s.name === state.asset;
+  drawOrder.forEach(s => {
+    const isSpy = s.name === "S&P 500", isSelected = s.name === state.asset;
     const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
-
-    const path = g.append("path").datum(s.values)
-      .attr("fill", "none")
-      .attr("stroke", color)
+    const path = linesG.append("path").datum(s.values)
+      .attr("fill", "none").attr("stroke", color)
       .attr("stroke-width", isSpy ? 3.2 : isSelected ? 3 : 1.9)
       .attr("opacity", isSpy ? 1 : 0.86)
-      .attr("d", lineGen);
+      .attr("d", makeLineGen(xScale));
     animatePath(path, isSpy ? 1000 : 1600);
-
-    const last = s.values[s.values.length - 1];
-    const ticker = ASSET_INFO[s.name]?.ticker || s.name;
-    labelData.push({ name: s.name, ticker, value: last.value, x: x(last.date), y: y(last.value), color, isSpy });
+    pathMap[s.name] = { path, color, isSpy };
   });
 
-  fitLabelY(labelData, 14, h).forEach(d => {
-    g.append("path")
-      .attr("d", `M${d.x+2},${d.y} L${w+4},${d.y2}`)
-      .attr("stroke", d.color).attr("stroke-width", 0.7).attr("opacity", 0.45).attr("fill", "none");
-    g.append("text").attr("x", w + 8).attr("y", d.y2 + 4)
-      .attr("fill", d.color).attr("font-size", 10).attr("font-weight", d.isSpy ? 800 : 700)
-      .text(`${d.ticker} ${fmtDollar(d.value)}`);
-  });
-
-  g.append("g").attr("transform", `translate(0,${h})`)
-    .call(d3.axisBottom(x).ticks(8))
+  const xAxisG = g.append("g").attr("transform", `translate(0,${h})`)
+    .call(d3.axisBottom(xScale).ticks(8))
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
   g.append("g")
-    .call(d3.axisLeft(y).ticks(6).tickFormat(d => `$${d3.format(",.0f")(d)}`))
+    .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => `$${d3.format(",.0f")(d)}`))
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
     .attr("x", -h / 2).attr("y", -54).attr("text-anchor", "middle")
     .text(logMode ? "Value of $100 (log scale)" : "Value of $100 from start of data");
-  g.append("text").attr("class", "axis-label")
-    .attr("x", w / 2).attr("y", h + 42).attr("text-anchor", "middle")
-    .text("Date");
+  g.append("text").attr("class", "axis-label").attr("x", w / 2).attr("y", h + 42)
+    .attr("text-anchor", "middle").text("Date");
 
+  const labelsG = g.append("g").attr("class", "end-labels-g");
+  _drawLongEndLabels(labelsG, fullSeries, xScale, yScale, w, h, currentEndDate);
+
+  // Hover
   const tooltip = d3.select("#tooltip");
   const hoverLine = g.append("line").attr("y1", 0).attr("y2", h)
-    .attr("stroke", "#d7d2c8").attr("stroke-dasharray", "3 3").style("opacity", 0);
+    .attr("stroke", "#555").attr("stroke-width", 1.5).attr("stroke-dasharray", "5 3").style("opacity", 0);
   const bisect = d3.bisector(d => d.date).left;
-
   g.append("rect").attr("width", w).attr("height", h).attr("fill", "none").attr("pointer-events", "all")
     .on("mousemove", function(event) {
+      const xs = longChartState ? longChartState.xScale : xScale;
+      const ed = longChartState ? longChartState.currentEndDate : currentEndDate;
       const [mx] = d3.pointer(event);
-      const date = x.invert(mx);
+      const date = xs.invert(mx);
       hoverLine.attr("x1", mx).attr("x2", mx).style("opacity", 1);
       let html = `<b>${date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}</b>`;
-      series.forEach(s => {
-        const i = Math.min(bisect(s.values, date, 1), s.values.length - 1);
-        const d = s.values[i];
-        if (d) html += `<br/>${assetLabel(s.name)}: <b>${fmtDollar(d.value)}</b>`;
+      fullSeries.forEach(s => {
+        const vis = s.values.filter(d => d.date <= ed);
+        const i = Math.min(bisect(vis, date, 1), vis.length - 1);
+        if (vis[i]) html += `<br/>${assetLabel(s.name)}: <b>${fmtDollar(vis[i].value)}</b>`;
       });
-      tooltip.style("opacity", 1)
-        .style("left", (event.clientX + 14) + "px").style("top", (event.clientY - 48) + "px")
-        .html(html);
+      tooltip.style("opacity", 1).style("left", (event.clientX+14)+"px").style("top", (event.clientY-48)+"px").html(html);
     })
     .on("mouseleave", () => { hoverLine.style("opacity", 0); tooltip.style("opacity", 0); });
+
+  longChartState = { svg, g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen, xScale, currentEndDate };
+}
+
+function _growLongChart(newEndDate) {
+  if (!longChartState) return;
+  const { g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen } = longChartState;
+  const DURATION = 2000;
+  const ease = d3.easeCubicInOut;
+  const xNew = d3.scaleTime().domain([startDate, newEndDate]).range([0, w]);
+  const newLineGen = makeLineGen(xNew);
+
+  // Expand clip to full width (lines outside current range will now slide into view)
+  d3.select("#long-view-clip-rect").attr("width", w);
+
+  // Transition all line paths to new x scale (existing data compresses left, new data slides in from right)
+  fullSeries.forEach(({ name }) => {
+    if (pathMap[name]) {
+      pathMap[name].path.transition().duration(DURATION).ease(ease).attr("d", newLineGen);
+    }
+  });
+
+  // Transition x axis
+  xAxisG.transition().duration(DURATION).ease(ease)
+    .call(d3.axisBottom(xNew).ticks(8))
+    .call(gx => gx.select(".domain").attr("stroke", "#eee"));
+
+  // New crisis band fades in immediately at correct positions
+  const newEp = episodeMeta[longRevealIdx];
+  if (newEp) {
+    const s = new Date(newEp.start), e = new Date(newEp.end);
+    const x0 = Math.max(0, xNew(s)), x1 = Math.min(w, xNew(e));
+    if (x1 > x0) {
+      bandsG.append("rect")
+        .attr("x", x0).attr("y", 0).attr("width", Math.max(4, x1-x0)).attr("height", h)
+        .attr("fill", "#5f8f74").attr("opacity", 0)
+        .transition().duration(DURATION).ease(ease).attr("opacity", 0.18);
+    }
+  }
+
+  // After paths settle: redraw bands + end labels at correct xNew positions
+  setTimeout(() => {
+    if (!longChartState) return;
+    _drawLongCrisisBands(bandsG, xNew, h, w);
+    _drawLongEndLabels(labelsG, fullSeries, xNew, yScale, w, h, newEndDate);
+    longChartState.xScale = xNew;
+    longChartState.currentEndDate = newEndDate;
+  }, DURATION + 80);
 }
 
 function continueToNextCrisis() {
   if (longRevealIdx < episodeMeta.length - 1) {
     longRevealIdx++;
-    drawLongChart();
+    _updateContinueBtn();
+    const currentEp = episodeMeta[longRevealIdx];
+    const titleEl = $("long-chart-title");
+    if (titleEl) titleEl.textContent = `Through the ${currentEp.episode}`;
+    if (longChartState) {
+      _growLongChart(new Date(currentEp.end));
+    } else {
+      drawLongChart();
+    }
   }
 }
 
@@ -1665,7 +1720,6 @@ function buildPortfolioBuilder() {
   const pillContainer = $("pb-asset-pills");
   const oldAssets = assets.filter(name => ASSET_INFO[name]?.group !== "New money");
   const newAssets = assets.filter(name => ASSET_INFO[name]?.group === "New money");
-
   const makeRow = (list, rowClass) => {
     const row = document.createElement("div");
     row.className = `pb-pill-row ${rowClass}`;
@@ -1680,7 +1734,6 @@ function buildPortfolioBuilder() {
     });
     return row;
   };
-
   pillContainer.appendChild(makeRow(oldAssets, "pb-row-old"));
   pillContainer.appendChild(makeRow(newAssets, "pb-row-new"));
 }
