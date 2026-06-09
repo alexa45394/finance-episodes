@@ -14,9 +14,9 @@
     <!-- HERO -->
     <section id="hero" class="hero-section">
       <div class="hero-intro">
-        <p class="intro-text">People call gold safe, tech risky, and Bitcoin digital gold. This project puts those labels under stress: old money versus new money, tested across real market crises.</p>
-        <p class="intro-subtext"><b>Old money</b> — gold, bonds, banks, energy: traditional stores of value built over centuries.</p>
-        <p class="intro-subtext"><b>New money</b> — tech, crypto, innovation stocks: modern growth bets tied to what comes next.</p>
+        <p class="intro-text">People call gold safe, tech risky, and Bitcoin a digital gold mine. We wanted to test those labels instead of just repeating them. This project compares old money and new money through the same real market crises.</p>
+        <p class="intro-subtext"><b>Old money</b> — gold, bonds, banks, and energy: the familiar assets people often trust when markets get shaky.</p>
+        <p class="intro-subtext"><b>New money</b> — tech, crypto, and innovation stocks: newer growth bets that can soar fast, but crack fast too.</p>
       </div>
       <p class="eyebrow center">Old money vs new money</p>
       <h1>Who Wins When<br />Markets Break?</h1>
@@ -159,6 +159,7 @@
         <div>
           <p class="control-label">Assets to show</p>
           <div id="asset-checkboxes" class="checkbox-ledger"></div>
+          <p id="long-selection-note" class="micro-note">Choose up to five assets. SPY always stays on for comparison.</p>
         </div>
         <label class="scale-toggle">
           <input type="checkbox" id="log-scale-toggle" /> Log scale for extreme assets
@@ -188,7 +189,7 @@
     <section id="glossary" class="deep-section">
       <p class="eyebrow">Know your assets</p>
       <h2>Market sheet: every asset in the stress test</h2>
-      <p class="section-copy">This is the clickable asset guide. Each row gives the role of the asset, its return in the selected episode, and a plain-English preview. Click a row for deeper notes by crisis.</p>
+      <p class="section-copy">Use this like a market cheat sheet. Each row shows the asset, what $100 became, and why it matters. Click any row to open the full notes by crisis.</p>
       <div class="group-filter">
         <button class="filter-btn active" data-filter="all" type="button">All</button>
         <button class="filter-btn" data-filter="old" type="button">Old Money</button>
@@ -220,7 +221,10 @@
 
         <div class="pb-weights-section" id="pb-weights-section" style="display:none">
           <label class="pb-label">Allocate your $100</label>
-          <p class="pb-weights-hint">Drag sliders to adjust. Must add up to 100%.</p>
+          <div class="pb-weight-tools">
+            <p class="pb-weights-hint">Drag sliders or type a percent. When auto-balance is on, the other assets adjust so the total stays 100%.</p>
+            <label class="pb-auto-toggle"><input type="checkbox" id="pb-auto-balance" checked /> Auto-balance to 100%</label>
+          </div>
           <div class="pb-sliders" id="pb-sliders"></div>
           <div class="pb-allocation-total">
             Total: <span id="pb-total-pct">0%</span>
@@ -235,6 +239,7 @@
           <div id="pb-legend"></div>
         </div>
         <div id="pb-line-chart"></div>
+        <button class="nav-btn next pb-best-toggle" id="pb-show-best-btn" type="button">Show best-performing mix →</button>
       </div>
 
       <div id="pb-best-combo" style="display:none">

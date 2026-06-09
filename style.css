@@ -652,3 +652,123 @@ input#pb-year-slider::-webkit-slider-thumb { appearance:none; width:20px; height
 .asset-guide-row.new-row:hover {
   background: #e9f1ea;
 }
+
+/* ---- patch: cleaner market sheet + labels ---- */
+#glossary-cards{background:#fffdf8;border:1px solid #111;padding:24px;overflow-x:auto;}
+#glossary-cards.asset-guide-empty{padding:0;border:none;}
+#glossary-cards .asset-guide-table{background:transparent;border:none;padding:0;box-shadow:none;}
+#glossary-cards .asset-guide-table table{width:100%;border-collapse:collapse;min-width:940px;}
+#glossary-cards .asset-guide-table th{font-family:"Courier New",monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:#333;padding:12px 8px;border-bottom:1.5px solid #111;}
+#glossary-cards .asset-guide-table td{padding:14px 10px;border-bottom:1px solid #d7d2c8;vertical-align:middle;}
+#glossary-cards .asset-guide-row{cursor:pointer;transition:background .15s ease;}
+#glossary-cards .asset-guide-row:hover{background:#e9f1ea;}
+#glossary-cards .asset-guide-row td:first-child{font-weight:400;border-left:4px solid #ccc;}
+#glossary-cards .asset-guide-row.old-row td:first-child{border-left-color:#666c70;}
+#glossary-cards .asset-guide-row.new-row td:first-child{border-left-color:#0b6f45;}
+#glossary-cards .asset-guide-row.base-row td:first-child{border-left-color:#111;}
+.asset-ticker{font-weight:800;color:#111;display:inline-block;margin-right:8px;}
+.asset-full-name{font-weight:400;color:#111;}
+.asset-col{min-width:190px;}
+.td-right{text-align:right;}
+.modal-asset-name .asset-ticker{font-size:inherit;}
+.modal-asset-name .asset-full-name{font-weight:400;}
+
+
+/* ---- patch: long view + portfolio polish ---- */
+.micro-note { margin-top: 10px; color: #777; font-size: .82rem; font-style: italic; }
+.check-chip.disabled-soft { opacity: .48; cursor: not-allowed; }
+.check-chip.disabled-soft input { cursor: not-allowed; }
+.pb-weight-tools { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; margin-bottom: 10px; }
+.pb-auto-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 700; color: #555; border: 1px solid #d7d2c8; padding: 7px 11px; border-radius: 999px; background: #fffdf8; white-space: nowrap; }
+.pb-auto-toggle input { accent-color: #0b6f45; }
+.pb-weight-number { width: 54px; padding: 4px 6px; border: 1px solid #d7d2c8; border-radius: 3px; font-size: .82rem; text-align: right; font-family: Inter, sans-serif; }
+.pb-slider-row { grid-template-columns: minmax(145px, 1fr) minmax(170px, 4fr) 58px 44px; }
+.pb-best-toggle { margin-top: 16px; display: none; align-items: center; width: fit-content; }
+#long-selection-note { max-width: 620px; }
+#long-chart svg text { paint-order: stroke; stroke: #fffdf8; stroke-width: 2px; stroke-linejoin: round; }
+#long-chart svg .axis-label, #long-chart svg .tick text { stroke: none; }
+.pb-slider-row { display: grid; grid-template-columns: minmax(145px, 1fr) minmax(170px, 4fr) 58px 44px; align-items: center; gap: 12px; }
+@media (max-width: 700px) { .pb-slider-row { grid-template-columns: 1fr; } .pb-weight-number, .pb-weight-val { width: fit-content; } }
+
+
+/* ---- v5 patch: one clean glossary table shell, no box-in-box ---- */
+#glossary-cards.market-table-wrap,
+#glossary-cards {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+#glossary-cards .asset-guide-table {
+  background: #fffdf8 !important;
+  border: 1px solid #111 !important;
+  padding: 22px 24px !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+}
+#glossary-cards .asset-guide-table table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+#glossary-cards .asset-guide-table th:nth-child(1),
+#glossary-cards .asset-guide-table td:nth-child(1) { width: 20%; }
+#glossary-cards .asset-guide-table th:nth-child(2),
+#glossary-cards .asset-guide-table td:nth-child(2) { width: 13%; }
+#glossary-cards .asset-guide-table th:nth-child(3),
+#glossary-cards .asset-guide-table td:nth-child(3) { width: 11%; }
+#glossary-cards .asset-guide-table th:nth-child(4),
+#glossary-cards .asset-guide-table td:nth-child(4) { width: 17%; }
+#glossary-cards .asset-guide-table th:nth-child(5),
+#glossary-cards .asset-guide-table td:nth-child(5) { width: 39%; }
+#glossary-cards .asset-guide-row:hover {
+  background: #e9f1ea !important;
+}
+#glossary-cards .asset-guide-row:hover .row-action {
+  text-decoration: underline;
+}
+#glossary-cards .row-action {
+  color: #006b45;
+  font-weight: 800;
+}
+#glossary-cards .asset-guide-row {
+  cursor: pointer;
+}
+#glossary-cards .asset-col {
+  min-width: 0 !important;
+}
+#glossary-cards .asset-ticker {
+  font-weight: 800;
+  display: inline-block;
+  margin-right: 6px;
+}
+#glossary-cards .asset-full-name {
+  font-weight: 400;
+}
+
+/* Long-view crisis bands should read like visible annotations, not barely-there background. */
+.long-crisis-band { mix-blend-mode: multiply; }
+.long-crisis-label { paint-order: stroke; stroke: #fffdf8; stroke-width: 2px; stroke-linejoin: round; }
+
+
+/* ---- v6: simplify market sheet columns ---- */
+#glossary-cards .asset-guide-table table{
+  table-layout: fixed;
+  min-width: 760px;
+}
+#glossary-cards .asset-guide-table th:nth-child(1),
+#glossary-cards .asset-guide-table td:nth-child(1){ width: 20%; }
+#glossary-cards .asset-guide-table th:nth-child(2),
+#glossary-cards .asset-guide-table td:nth-child(2){ width: 14%; }
+#glossary-cards .asset-guide-table th:nth-child(3),
+#glossary-cards .asset-guide-table td:nth-child(3){ width: 66%; }
+#glossary-cards .asset-guide-table td.why-col{
+  line-height: 1.55;
+}
+#glossary-cards .asset-guide-table td{
+  padding-top: 16px;
+  padding-bottom: 16px;
+}

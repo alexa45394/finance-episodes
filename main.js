@@ -58,13 +58,13 @@ const ASSET_INFO = {
   },
   "Nasdaq 100": {
     ticker: "QQQ", group: "New money",
-    description: "The 100 largest non-financial companies listed on the Nasdaq exchange, heavily weighted toward tech giants like Apple, Microsoft, and Alphabet. It matters here because QQQ is one of the clearest tradable proxies for the tech-heavy new-money story, from the dot-com crash to the AI rally. It moves fast in both directions — huge gains in tech booms, sharp drops when valuations get questioned or rates rise.",
-    example: "Apple, Microsoft, Nvidia, Amazon, and other large growth companies drive much of this index.",
+    description: "QQQ tracks the Nasdaq-100: 100 of the largest non-financial companies listed on Nasdaq. It is not exactly the same as a technology-sector fund. It is a growth-heavy index with a lot of mega-cap tech, but it can also include consumer, communication, and other Nasdaq-listed companies. That makes it a useful proxy for the broader new-money story, from the dot-com crash to the AI rally.",
+    example: "Think of QQQ as the growth-heavy Nasdaq basket: Apple, Microsoft, Nvidia, Amazon, Costco, and other large Nasdaq names can all matter here.",
   },
   "Technology": {
     ticker: "XLK", group: "New money",
-    description: "A broad basket of technology companies including hardware, software, and services. This sector has driven much of the stock market's growth over the past two decades but is vulnerable to rising interest rates and slowing growth expectations.",
-    example: "This is broader than one company, but it is still strongly tied to the tech cycle.",
+    description: "XLK is a true technology-sector ETF. It pulls technology companies from the S&P 500, so it is narrower than QQQ and more directly focused on software, hardware, chips, and IT services. QQQ is a Nasdaq growth index; XLK is the technology sector itself.",
+    example: "A finance person would read XLK as the cleaner technology-sector bet, while QQQ is the broader Nasdaq/growth benchmark.",
   },
   "Semiconductors": {
     ticker: "SMH", group: "New money",
@@ -78,14 +78,15 @@ const ASSET_INFO = {
   },
   "Bitcoin": {
     ticker: "BTC-USD", group: "New money",
-    description: "The world's largest cryptocurrency. Bitcoin is decentralized — no government controls it. It's become a speculative asset that moves dramatically in both directions. Some see it as digital gold; others see it as a pure gamble. In the data, it can win huge, but it is not stable.",
+    description: "The world's largest cryptocurrency. Bitcoin sits outside the traditional banking system and trades more like a high-conviction risk asset than a steady store of value. Some people pitch it as digital gold; others see it as a speculative bet. In the data here, it can win huge, but it is never calm.",
     example: "Bitcoin can rally during distrust in banks, but it can also fall more than stocks during risk-off periods.",
   },
 };
 
 const GROUP_EXPLAINER = {
-  "Old money": "Old money assets are traditional, time-tested investments: gold, banks, bonds, utilities, and energy. They are often treated as safer because they are tied to older systems of wealth, but each crisis tests that reputation differently.",
-  "New money": "New money assets are tied to modern growth stories: technology, semiconductors, innovation stocks, and crypto. They can run far ahead when optimism is high, but they can fall hard when investors stop paying for future growth.",
+  "Baseline": "The benchmark is the yardstick. It is not an asset category you are choosing between old and new money; it is the reference point the rest of the project compares against.",
+  "Old money": "Old money assets are the classic parts of a portfolio: gold, bonds, banks, utilities, and energy. People often trust them in rough markets, but each crisis tests that idea in a different way.",
+  "New money": "New money assets are tied to modern growth stories: technology, semiconductors, innovation stocks, and crypto. They can surge when optimism is high, but they can fall hard when investors stop paying for future growth.",
 };
 
 const ASSET_ORDER = [
@@ -94,18 +95,33 @@ const ASSET_ORDER = [
 ];
 
 const ASSET_DISPLAY_NAMES = {
-  "S&P 500": "SPY — S&P 500 benchmark",
-  "Gold": "GLD — Gold",
-  "Financials": "XLF — Financials",
-  "Regional Banks": "KRE — Regional Banks",
-  "Energy": "XLE — Energy",
-  "Utilities": "XLU — Utilities",
-  "Long Bonds": "TLT — Long-term Treasury bonds",
-  "Nasdaq 100": "QQQ — tech-heavy Nasdaq ETF",
-  "Technology": "XLK — Technology",
-  "Semiconductors": "SMH — Semiconductors",
-  "Innovation Stocks": "ARKK — Innovation stocks",
-  "Bitcoin": "BTC-USD — Bitcoin",
+  "S&P 500": "SPY S&P 500 benchmark",
+  "Gold": "GLD Gold",
+  "Financials": "XLF Financials",
+  "Regional Banks": "KRE Regional Banks",
+  "Energy": "XLE Energy",
+  "Utilities": "XLU Utilities",
+  "Long Bonds": "TLT Long Treasury bonds",
+  "Nasdaq 100": "QQQ Nasdaq-100 ETF",
+  "Technology": "XLK Technology",
+  "Semiconductors": "SMH Semiconductors",
+  "Innovation Stocks": "ARKK Innovation stocks",
+  "Bitcoin": "BTC-USD Bitcoin",
+};
+
+const ASSET_FULL_NAMES = {
+  "S&P 500": "S&P 500 benchmark",
+  "Gold": "Gold",
+  "Financials": "Financials",
+  "Regional Banks": "Regional Banks",
+  "Energy": "Energy",
+  "Utilities": "Utilities",
+  "Long Bonds": "Long Treasury bonds",
+  "Nasdaq 100": "Nasdaq-100 ETF",
+  "Technology": "Technology",
+  "Semiconductors": "Semiconductors",
+  "Innovation Stocks": "Innovation stocks",
+  "Bitcoin": "Bitcoin",
 };
 
 const ASSET_AVAILABILITY_NOTES = {
@@ -139,6 +155,13 @@ const BENCHMARK_COLOR = "#111111";
 
 function assetLabel(name) {
   return ASSET_DISPLAY_NAMES[name] || name;
+}
+
+function assetLabelHTML(name) {
+  const info = ASSET_INFO[name] || {};
+  const ticker = info.ticker || name;
+  const full = ASSET_FULL_NAMES[name] || name;
+  return `<span class="asset-ticker">${ticker}</span> <span class="asset-full-name">${full}</span>`;
 }
 
 function availableAssetsForEpisode(episode) {
@@ -232,8 +255,8 @@ const EPISODE_TAKEAWAYS = {
     "Energy":          "Energy held relatively steady — the dot-com crash was a tech story, and oil demand kept chugging along.",
     "Utilities":       "Utilities were one of the better places to hide during the dot-com crash, offering steady returns when growth stocks were collapsing.",
     "Long Bonds":      "Long bonds rallied strongly as investors fled stocks and the Fed cut rates — exactly what bonds are supposed to do in a crisis.",
-    "Nasdaq 100":      "The Nasdaq 100 was ground zero for the dot-com crash, losing nearly 80% of its value as internet bubble valuations collapsed.",
-    "Technology":      "Technology stocks were devastated — many companies that had never turned a profit simply ceased to exist.",
+    "Nasdaq 100":      "The Nasdaq-100 was ground zero for the dot-com crash. Because QQQ is a growth-heavy Nasdaq basket, it captured how badly the internet bubble damaged large new-money names.",
+    "Technology":      "XLK is the cleaner technology-sector slice. It was devastated too, showing that the damage was not just hype stocks — the whole tech sector was repriced.",
     "Semiconductors":  "Semiconductors crashed hard as demand for tech hardware evaporated along with the companies buying it.",
     "Innovation Stocks":"Innovation-style stocks didn't exist as a formal category yet, but the speculative tech companies of the era were wiped out.",
     "Bitcoin":         "Bitcoin didn't exist during the dot-com crash — it was created in 2009.",
@@ -626,19 +649,22 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
   // Episode highlight band (uses current active scale)
   const activeX = expanded ? xFull : xInit;
   const epEnd   = Math.min(years.end + 0.9, initMaxYear);
+  const epWidth = Math.max(4, activeX(epEnd) - activeX(years.start));
+  const epLabelX = expanded ? activeX(years.start) + 5 : activeX(years.start) + epWidth / 2;
   g.append("rect")
     .attr("class", "ep-band")
     .attr("x", activeX(years.start)).attr("y", 0)
-    .attr("width", Math.max(4, activeX(epEnd) - activeX(years.start))).attr("height", h)
+    .attr("width", epWidth).attr("height", h)
     .attr("fill", "#0b6f45").attr("opacity", 0.07);
   g.append("text").attr("class", "ep-label")
-    .attr("x", activeX(years.start) + 5).attr("y", 14)
-    .attr("fill", "#0b6f45").attr("font-size", 10).attr("font-weight", 700).text(state.episode);
+    .attr("x", epLabelX).attr("y", 12)
+    .attr("text-anchor", expanded ? "start" : "middle")
+    .attr("fill", "#0b6f45").attr("font-size", 10).attr("font-weight", 700).text(`${state.episode} inflation`);
 
   // $100 baseline
   g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(100)).attr("y2", y(100))
     .attr("stroke", "#ddd").attr("stroke-dasharray", "5,4").attr("stroke-width", 1.5);
-  g.append("text").attr("x", 4).attr("y", y(100) - 7)
+  g.append("text").attr("class", "cash-start-label").attr("x", activeX(years.start) + 5).attr("y", y(100) + 18)
     .attr("fill", "#bbb").attr("font-size", 11).text(`$100 in ${startYear}`);
 
   // ── EPISODE portion (area + line) ──
@@ -647,7 +673,7 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
     .attr("d", areaGen(activeX));
   const epLine = g.append("path").attr("class", "ep-line")
     .datum(lineData).attr("fill", "none")
-    .attr("stroke", "#666c70").attr("stroke-width", 2.5)
+    .attr("stroke", "#0b6f45").attr("stroke-width", 2.5)
     .attr("d", lineGen(activeX));
 
   // Animate the initial draw
@@ -665,7 +691,7 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
     .attr("d", areaGen(expanded ? xFull : xInit));
   const extLine = g.append("path").attr("class", "ext-line")
     .datum(extData).attr("fill", "none")
-    .attr("stroke", "#666c70").attr("stroke-width", 2.5)
+    .attr("stroke", "#0b6f45").attr("stroke-width", 2.5)
     .attr("clip-path", "url(#inflation-clip)")
     .attr("d", lineGen(expanded ? xFull : xInit));
 
@@ -750,6 +776,10 @@ function _renderInflationChart(lineData, startYear, years, fullLine, expanded) {
         .attr("x", xFull(years.start))
         .attr("width", Math.max(4, xFull(epEnd) - xFull(years.start)));
       g.select(".ep-label")
+        .attr("text-anchor", "start")
+        .transition().duration(DURATION).ease(ease)
+        .attr("x", xFull(years.start) + 5);
+      g.select(".cash-start-label")
         .transition().duration(DURATION).ease(ease)
         .attr("x", xFull(years.start) + 5);
 
@@ -1199,9 +1229,21 @@ function renderLongViewSection() {
 }
 
 function renderCheckboxes() {
+  const MAX_LONG_ASSETS = 5;
   const allAssets = ["S&P 500", ...allStressTestAssets()];
   checkedAssets.add("S&P 500");
   if (state.asset) checkedAssets.add(state.asset);
+
+  // Keep the long view readable: SPY plus up to five comparison assets.
+  const nonSpy = [...checkedAssets].filter(a => a !== "S&P 500");
+  if (nonSpy.length > MAX_LONG_ASSETS) {
+    const keep = new Set([state.asset, ...nonSpy].filter(Boolean).slice(0, MAX_LONG_ASSETS));
+    checkedAssets = new Set(["S&P 500", ...keep]);
+  }
+
+  const selectedCount = [...checkedAssets].filter(a => a !== "S&P 500").length;
+  const note = $("long-selection-note");
+  if (note) note.textContent = `${selectedCount}/${MAX_LONG_ASSETS} comparison assets selected. SPY stays locked on.`;
 
   const container = $("asset-checkboxes");
   if (!container) return;
@@ -1209,13 +1251,23 @@ function renderCheckboxes() {
 
   allAssets.forEach(name => {
     const isLocked = name === "S&P 500";
+    const isChecked = checkedAssets.has(name);
+    const wouldExceed = !isLocked && !isChecked && selectedCount >= MAX_LONG_ASSETS;
     const label = document.createElement("label");
-    label.className = `check-chip${isLocked ? " locked" : ""}`;
-    label.innerHTML = `<input type="checkbox" value="${name}" ${checkedAssets.has(name) ? "checked" : ""} ${isLocked ? "disabled" : ""}/> <span>${assetLabel(name)}</span>`;
-    label.querySelector("input").addEventListener("change", function() {
+    label.className = `check-chip${isLocked ? " locked" : ""}${wouldExceed ? " disabled-soft" : ""}`;
+    label.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? "checked" : ""} ${isLocked ? "disabled" : ""}/> <span>${assetLabel(name)}</span>`;
+    const input = label.querySelector("input");
+    input.addEventListener("change", function() {
       if (name === "S&P 500") return;
+      const current = [...checkedAssets].filter(a => a !== "S&P 500").length;
+      if (this.checked && current >= MAX_LONG_ASSETS) {
+        this.checked = false;
+        if (note) note.textContent = `Limit reached: keep this to five comparison assets so the lines and labels stay readable.`;
+        return;
+      }
       this.checked ? checkedAssets.add(name) : checkedAssets.delete(name);
       checkedAssets.add("S&P 500");
+      renderCheckboxes();
       drawLongChart();
     });
     container.appendChild(label);
@@ -1233,6 +1285,31 @@ function longSeriesForAsset(assetName, startDate, endDate) {
   return rows.map(d => ({ date: d.date, value: 100 * d[ticker] / first, asset: assetName, ticker }));
 }
 
+function shortEpisodeLabel(name) {
+  return ({
+    "Dot-Com Crash": "Dot-com",
+    "Global Financial Crisis": "2008",
+    "COVID Crash": "COVID",
+    "2022 Inflation Shock": "2022 inf.",
+    "Regional Banking Crisis": "Banks",
+    "AI Rally": "AI"
+  })[name] || name;
+}
+
+function fitLabelY(labels, minGap, h) {
+  const sorted = labels.slice().sort((a,b) => a.y - b.y);
+  sorted.forEach((d, i) => {
+    if (i === 0) d.y2 = Math.max(10, Math.min(h - 6, d.y));
+    else d.y2 = Math.max(d.y, sorted[i-1].y2 + minGap);
+  });
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].y2 > h - 6) sorted[i].y2 = h - 6;
+    if (i < sorted.length - 1) sorted[i].y2 = Math.min(sorted[i].y2, sorted[i+1].y2 - minGap);
+  }
+  sorted.forEach(d => { d.y2 = Math.max(10, d.y2); });
+  return sorted;
+}
+
 function drawLongChart() {
   const el = $("long-chart");
   if (!el) return;
@@ -1240,18 +1317,15 @@ function drawLongChart() {
 
   if (!episodeMeta.length) return;
 
-  // Always start from before the first crisis; end at the last revealed episode
   const startDate = new Date("2000-01-01");
   const revealedEpisode = episodeMeta[Math.min(longRevealIdx, episodeMeta.length - 1)];
   const endDate = new Date(revealedEpisode.end);
 
-  // Update title
   const titleEl = $("long-chart-title");
   if (titleEl) titleEl.textContent = longRevealIdx === 0
     ? `The ${revealedEpisode.episode}`
     : `Through the ${revealedEpisode.episode}`;
 
-  // Update continue button
   const continueBtn = $("continue-next-crisis");
   if (continueBtn) {
     if (longRevealIdx >= episodeMeta.length - 1) {
@@ -1266,8 +1340,8 @@ function drawLongChart() {
     }
   }
 
-  // Build series for each checked asset, clipped to revealed window
-  const series = [...checkedAssets]
+  const selectedNames = [...checkedAssets];
+  const series = selectedNames
     .map(name => ({ name, values: longSeriesForAsset(name, startDate, endDate) }))
     .filter(s => s.values.length > 0);
 
@@ -1278,38 +1352,60 @@ function drawLongChart() {
 
   const all = series.flatMap(s => s.values);
   const W = el.clientWidth || 980, H = 455;
-  const margin = { top: 28, right: 110, bottom: 50, left: 68 };
+  const margin = { top: 34, right: 138, bottom: 50, left: 68 };
   const w = W - margin.left - margin.right, h = H - margin.top - margin.bottom;
 
   const x = d3.scaleTime().domain([startDate, endDate]).range([0, w]);
   const maxVal = d3.max(all, d => d.value);
   const minVal = d3.min(all, d => d.value);
-  const y = useLogScale && minVal > 0
+  const extreme = minVal > 0 && maxVal / Math.max(minVal, 1) > 25;
+  const logMode = (useLogScale || extreme) && minVal > 0;
+  const y = logMode
     ? d3.scaleLog().domain([Math.max(10, minVal * 0.8), maxVal * 1.12]).range([h, 0])
     : d3.scaleLinear().domain([Math.max(0, minVal * 0.86), maxVal * 1.12]).nice().range([h, 0]);
 
   const svg = d3.select(el).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Grid
   g.append("g").call(d3.axisLeft(y).ticks(6).tickSize(-w).tickFormat(""))
     .call(gx => { gx.select(".domain").remove(); gx.selectAll("line").attr("stroke", "#f0f0f0"); });
 
-  // Only show bands for revealed episodes
-  episodeMeta.slice(0, longRevealIdx + 1).forEach(ep => {
+  // Crisis windows: keep these visually tied to the timeline, even if the labels get close.
+  // The shaded bands are part of the story, so visibility matters more than perfect label spacing.
+  episodeMeta.slice(0, longRevealIdx + 1).forEach((ep) => {
     const s = new Date(ep.start), e = new Date(ep.end);
     if (e < startDate) return;
-    const x0 = Math.max(0, x(s)), x1 = Math.min(w, x(e));
+    const x0 = Math.max(0, x(s));
+    const x1 = Math.min(w, x(e));
     if (x1 > x0) {
-      g.append("rect").attr("x", x0).attr("y", 0).attr("width", x1 - x0).attr("height", h)
-        .attr("fill", "#0b6f45").attr("opacity", 0.08);
-      g.append("text").attr("x", x0 + 4).attr("y", 13)
-        .attr("fill", "#0b6f45").attr("font-size", 9).attr("font-weight", 700)
-        .text(ep.episode.replace("Global Financial Crisis", "2008 Crisis").replace("Regional Banking Crisis", "Banking Crisis"));
+      const bw = Math.max(4, x1 - x0);
+      g.append("rect")
+        .attr("class", "long-crisis-band")
+        .attr("x", x0)
+        .attr("y", 0)
+        .attr("width", bw)
+        .attr("height", h)
+        .attr("fill", "#5f8f74")
+        .attr("opacity", 0.18);
+      const labelCentered = ep.episode !== "Dot-Com Crash";
+      g.append("text")
+        .attr("class", "long-crisis-label")
+        .attr("x", labelCentered ? x0 + bw / 2 : x0 + 6)
+        .attr("y", 15)
+        .attr("text-anchor", labelCentered ? "middle" : "start")
+        .attr("fill", "#006b45")
+        .attr("font-size", 10)
+        .attr("font-weight", 800)
+        .text(ep.episode);
     }
   });
 
-  // $100 baseline
+  if (logMode) {
+    g.append("text").attr("x", w).attr("y", -12).attr("text-anchor", "end")
+      .attr("fill", "#777").attr("font-size", 10).attr("font-style", "italic")
+      .text("Log scale used so extreme gains do not flatten the rest.");
+  }
+
   g.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(100)).attr("y2", y(100))
     .attr("stroke", "#ddd").attr("stroke-dasharray", "5,4").attr("stroke-width", 1.5);
 
@@ -1317,28 +1413,36 @@ function drawLongChart() {
     .defined(d => Number.isFinite(d.value) && d.value > 0)
     .x(d => x(d.date)).y(d => y(d.value)).curve(d3.curveMonotoneX);
 
-  series.forEach((s, si) => {
+  const drawOrder = series.slice().sort((a,b) => (a.name === "S&P 500") - (b.name === "S&P 500"));
+  const labelData = [];
+
+  drawOrder.forEach((s) => {
     const isSpy = s.name === "S&P 500";
     const isSelected = s.name === state.asset;
-    const color = isSelected && !isSpy ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
+    const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
 
     const path = g.append("path").datum(s.values)
       .attr("fill", "none")
       .attr("stroke", color)
-      .attr("stroke-width", isSpy ? 3 : isSelected ? 3.2 : 2)
-      .attr("opacity", isSpy ? 1 : 0.92)
+      .attr("stroke-width", isSpy ? 3.2 : isSelected ? 3 : 1.9)
+      .attr("opacity", isSpy ? 1 : 0.86)
       .attr("d", lineGen);
-
-    animatePath(path, isSpy ? 1200 : 1800);
+    animatePath(path, isSpy ? 1000 : 1600);
 
     const last = s.values[s.values.length - 1];
     const ticker = ASSET_INFO[s.name]?.ticker || s.name;
-    g.append("text").attr("x", x(last.date) + 6).attr("y", y(last.value) + 4)
-      .attr("fill", color).attr("font-size", 11).attr("font-weight", 700)
-      .text(`${ticker} ${fmtDollar(last.value)}`);
+    labelData.push({ name: s.name, ticker, value: last.value, x: x(last.date), y: y(last.value), color, isSpy });
   });
 
-  // Axes
+  fitLabelY(labelData, 14, h).forEach(d => {
+    g.append("path")
+      .attr("d", `M${d.x+2},${d.y} L${w+4},${d.y2}`)
+      .attr("stroke", d.color).attr("stroke-width", 0.7).attr("opacity", 0.45).attr("fill", "none");
+    g.append("text").attr("x", w + 8).attr("y", d.y2 + 4)
+      .attr("fill", d.color).attr("font-size", 10).attr("font-weight", d.isSpy ? 800 : 700)
+      .text(`${d.ticker} ${fmtDollar(d.value)}`);
+  });
+
   g.append("g").attr("transform", `translate(0,${h})`)
     .call(d3.axisBottom(x).ticks(8))
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
@@ -1347,15 +1451,14 @@ function drawLongChart() {
     .call(gx => gx.select(".domain").attr("stroke", "#eee"));
   g.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)")
     .attr("x", -h / 2).attr("y", -54).attr("text-anchor", "middle")
-    .text("Value of $100 from start of data");
+    .text(logMode ? "Value of $100 (log scale)" : "Value of $100 from start of data");
   g.append("text").attr("class", "axis-label")
     .attr("x", w / 2).attr("y", h + 42).attr("text-anchor", "middle")
     .text("Date");
 
-  // Hover tooltip
   const tooltip = d3.select("#tooltip");
   const hoverLine = g.append("line").attr("y1", 0).attr("y2", h)
-    .attr("stroke", "#ddd").attr("stroke-dasharray", "3 3").style("opacity", 0);
+    .attr("stroke", "#d7d2c8").attr("stroke-dasharray", "3 3").style("opacity", 0);
   const bisect = d3.bisector(d => d.date).left;
 
   g.append("rect").attr("width", w).attr("height", h).attr("fill", "none").attr("pointer-events", "all")
@@ -1400,34 +1503,29 @@ function buildGlossaryCards() {
     return true;
   });
 
-  const latestEpisode = state.episode || episodeMeta[0]?.episode;
+  const activeEpisode = state.episode || episodeMeta[0]?.episode;
   container.innerHTML = `
-    <div class="market-table-wrap asset-guide-table">
+    <div class="asset-guide-table">
       <table>
         <thead>
           <tr>
             <th>Asset</th>
             <th>Role</th>
-            <th class="td-right">This episode</th>
             <th>Why it matters</th>
           </tr>
         </thead>
         <tbody>
           ${assets.map(name => {
             const info = ASSET_INFO[name] || {};
-            const r = rowFor(name, latestEpisode);
-            const status = availabilityStatus(name, latestEpisode);
-            const returnText = r
-              ? `<span class="${r.total_return_pct >= 0 ? "pos" : "neg"}">${fmtPct(r.total_return_pct)}</span>${status.kind === "partial" ? `<div class="data-status partial">partial data</div>` : ""}`
-              : `<span class="data-status missing">${status.short}</span>`;
+            const status = availabilityStatus(name, activeEpisode);
             const previewSource = status.kind === "missing" || status.kind === "partial" ? status.detail : (info.description || "");
-            const preview = (previewSource || "").replace(/<[^>]*>/g, "").slice(0, 145) + ((previewSource || "").length > 145 ? "…" : "");
+            const cleanPreview = (previewSource || "").replace(/<[^>]*>/g, "");
+            const preview = cleanPreview.slice(0, 145) + (cleanPreview.length > 145 ? "…" : "");
             const filterClass = info.group === "New money" ? "new-row" : info.group === "Old money" ? "old-row" : "base-row";
             return `<tr class="asset-guide-row ${filterClass}" data-asset="${name}">
-              <td><b>${assetLabel(name)}</b></td>
+              <td class="asset-col">${assetLabelHTML(name)}</td>
               <td>${info.group || "Asset"}</td>
-              <td class="td-right">${returnText}</td>
-              <td>${preview} <span class="row-action">Open notes →</span></td>
+              <td class="why-col">${preview} <span class="row-action">Open notes →</span></td>
             </tr>`;
           }).join("")}
         </tbody>
@@ -1469,7 +1567,7 @@ function openGlossaryModal(assetName) {
   }).filter(Boolean).join("");
 
   $("modal-content").innerHTML = `
-    <div class="modal-asset-name">${assetLabel(assetName)}</div>
+    <div class="modal-asset-name">${assetLabelHTML(assetName)}</div>
     <span class="modal-group-badge ${isNew ? "new-money" : info.group === "Old money" ? "old-money" : "base-money"}">${info.group}</span>
     <p class="modal-description">${info.description}</p>
     <div class="modal-group-explainer"><b>Category context:</b> ${explainer}</div>
@@ -1494,7 +1592,7 @@ function closeGlossaryModal() {
 }
 
 // ── PORTFOLIO BUILDER ─────────────────────────────────────────────────────────
-const PB = { year: 2007, selected: new Set(), weights: {} };
+const PB = { year: 2007, selected: new Set(), weights: {}, autoBalance: true, showBest: false };
 
 function buildPortfolioBuilder() {
   const assets = allStressTestAssets();
@@ -1511,6 +1609,7 @@ function buildPortfolioBuilder() {
     $("pb-best-year").textContent = this.value;
     const pct = ((this.value - 2000) / 23 * 100).toFixed(1);
     this.style.background = `linear-gradient(to right,#1a1a1a 0%,#1a1a1a ${pct}%,#e0e0e0 ${pct}%)`;
+    PB.showBest = false;
     renderPBChart();
     renderBestCombo();
   });
@@ -1523,6 +1622,30 @@ function buildPortfolioBuilder() {
       tick.textContent = y;
       tick.style.left = ((y - 2000) / 23 * 100) + "%";
       tickContainer.appendChild(tick);
+    });
+  }
+
+  const autoToggle = $("pb-auto-balance");
+  if (autoToggle) {
+    autoToggle.checked = PB.autoBalance;
+    autoToggle.addEventListener("change", function() {
+      PB.autoBalance = this.checked;
+      if (PB.autoBalance && PB.selected.size) {
+        const assetsNow = [...PB.selected];
+        const first = assetsNow[0];
+        rebalanceWeights(first, PB.weights[first] || Math.round(100 / assetsNow.length));
+      }
+      syncWeightControls();
+      updateTotalPct();
+      renderPBChart();
+    });
+  }
+  const bestBtn = $("pb-show-best-btn");
+  if (bestBtn) {
+    bestBtn.addEventListener("click", () => {
+      PB.showBest = true;
+      renderBestCombo();
+      $("pb-best-combo")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
@@ -1543,6 +1666,7 @@ function buildPortfolioBuilder() {
 function togglePBAsset(name) {
   if (PB.selected.has(name)) { PB.selected.delete(name); delete PB.weights[name]; }
   else { PB.selected.add(name); }
+  PB.showBest = false;
   document.querySelectorAll(".pb-pill").forEach(p => p.classList.toggle("pb-pill-active", PB.selected.has(p.dataset.asset)));
   updatePBCount();
   rebuildWeightSliders();
@@ -1571,22 +1695,59 @@ function rebuildWeightSliders() {
   assets.forEach(name => {
     const isNew = ASSET_INFO[name]?.group === "New money";
     const color = isNew ? NEW_MONEY_COLOR : OLD_MONEY_COLOR;
+    const safeId = safePBId(name);
     const row = document.createElement("div");
     row.className = "pb-slider-row";
     row.innerHTML = `
       <div class="pb-slider-label"><span class="pb-slider-dot" style="background:${color}"></span><span>${assetLabel(name)}</span></div>
       <input type="range" class="pb-weight-slider" data-asset="${name}" min="0" max="100" step="1" value="${PB.weights[name]}" />
-      <span class="pb-weight-val" id="pbw-${name.replace(/[\s&]/g,'_')}">${PB.weights[name]}%</span>`;
+      <input type="number" class="pb-weight-number" data-asset="${name}" min="0" max="100" step="1" value="${PB.weights[name]}" aria-label="${assetLabel(name)} percent" />
+      <span class="pb-weight-val" id="pbw-${safeId}">${PB.weights[name]}%</span>`;
     slidersEl.appendChild(row);
   });
-  slidersEl.querySelectorAll(".pb-weight-slider").forEach(sl => {
-    sl.addEventListener("input", function() {
-      PB.weights[this.dataset.asset] = +this.value;
+  slidersEl.querySelectorAll(".pb-weight-slider, .pb-weight-number").forEach(input => {
+    input.addEventListener("input", function() {
+      const asset = this.dataset.asset;
+      const val = Math.max(0, Math.min(100, Math.round(+this.value || 0)));
+      if (PB.autoBalance) rebalanceWeights(asset, val);
+      else PB.weights[asset] = val;
+      syncWeightControls();
       updateTotalPct();
       renderPBChart();
     });
   });
+  syncWeightControls();
   updateTotalPct();
+}
+
+function safePBId(name) {
+  return name.replace(/[^a-z0-9]/gi,"_");
+}
+
+function rebalanceWeights(changedAsset, changedValue) {
+  const assets = [...PB.selected];
+  if (!assets.length) return;
+  changedValue = Math.max(0, Math.min(100, Math.round(changedValue)));
+  if (assets.length === 1) {
+    PB.weights[changedAsset] = 100;
+    return;
+  }
+  const others = assets.filter(a => a !== changedAsset);
+  const remaining = 100 - changedValue;
+  const base = Math.floor(remaining / others.length);
+  let rem = remaining - base * others.length;
+  PB.weights[changedAsset] = changedValue;
+  others.forEach((asset, i) => {
+    PB.weights[asset] = base + (i < rem ? 1 : 0);
+  });
+}
+
+function syncWeightControls() {
+  Object.entries(PB.weights).forEach(([name, w]) => {
+    document.querySelectorAll(`.pb-weight-slider[data-asset="${CSS.escape(name)}"], .pb-weight-number[data-asset="${CSS.escape(name)}"]`).forEach(el => { el.value = w; });
+    const label = $(`pbw-${safePBId(name)}`);
+    if (label) label.textContent = w + "%";
+  });
 }
 
 function updateTotalPct() {
@@ -1597,10 +1758,7 @@ function updateTotalPct() {
   totalEl.textContent = total + "%";
   totalEl.style.color = total === 100 ? "#2a9d5c" : "#d9534f";
   if (warnEl) warnEl.style.display = total !== 100 ? "inline" : "none";
-  Object.entries(PB.weights).forEach(([name, w]) => {
-    const el = $(`pbw-${name.replace(/[\s&]/g,"_")}`);
-    if (el) el.textContent = w + "%";
-  });
+  syncWeightControls();
 }
 
 function getPortfolioTimeSeries(selectedAssets, weights, startYear) {
@@ -1651,8 +1809,10 @@ function renderPBChart() {
   if (!chartArea || !chartEl) return;
   const selected = [...PB.selected];
   const total = Object.values(PB.weights).reduce((s,v) => s+v, 0);
-  if (selected.length === 0 || total !== 100) { chartArea.style.display = "none"; return; }
+  if (selected.length === 0 || total !== 100) { chartArea.style.display = "none"; $("pb-best-combo") && ($("pb-best-combo").style.display = "none"); return; }
   chartArea.style.display = "block";
+  const bestBtn = $("pb-show-best-btn");
+  if (bestBtn) bestBtn.style.display = "inline-flex";
 
   const portfolioSeries = getPortfolioTimeSeries(selected, PB.weights, PB.year);
   const spSeries = getSPTimeSeries(PB.year);
@@ -1762,6 +1922,7 @@ function renderBestCombo() {
   const bestEl = $("pb-best-combo");
   const bestContent = $("pb-best-content");
   if (!bestEl || !bestContent) return;
+  if (!PB.showBest) { bestEl.style.display = "none"; return; }
   const eligibleAssets = [...new Set(crisisData.map(d => d.asset_name))].filter(name => name !== "S&P 500").filter(name => assetEarliestYear(name) <= PB.year + 2);
   if (eligibleAssets.length < 2) { bestEl.style.display = "none"; return; }
   const ranked = eligibleAssets.map(a => ({ name: a, ret: assetFinalReturn(a, PB.year) })).filter(d => d.ret !== null).sort((a,b) => b.ret - a.ret);
@@ -1830,4 +1991,21 @@ function renderBestCombo() {
   g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`)).call(gx => gx.select(".domain").attr("stroke","#eee"));
   g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+40).attr("text-anchor","middle").text("Date");
   g.append("text").attr("class","axis-label").attr("transform","rotate(-90)").attr("x",-h/2).attr("y",-48).attr("text-anchor","middle").text("Value of $100");
+
+  const tooltip = d3.select("#tooltip");
+  const hoverLine = g.append("line").attr("y1",0).attr("y2",h).attr("stroke","#d7d2c8").attr("stroke-dasharray","3 3").style("opacity",0);
+  const bisect = d3.bisector(d => d.date).left;
+  g.append("rect").attr("width",w).attr("height",h).attr("fill","none").attr("pointer-events","all")
+    .on("mousemove", function(event) {
+      const [mx] = d3.pointer(event);
+      const date = x.invert(mx);
+      const bi = Math.min(bisect(portfolioSeries, date, 1), portfolioSeries.length-1);
+      const si = spSeries.length ? Math.min(bisect(spSeries, date, 1), spSeries.length-1) : -1;
+      const bd = portfolioSeries[bi];
+      const sd = si >= 0 ? spSeries[si] : null;
+      hoverLine.attr("x1",mx).attr("x2",mx).style("opacity",1);
+      tooltip.style("opacity",1).style("left",(event.clientX+14)+"px").style("top",(event.clientY-48)+"px")
+        .html(`<b>${bd.date.toLocaleDateString("en-US",{month:"short",year:"numeric"})}</b><br/><span style="color:#0b6f45">● Best mix</span> <b>$${bd.value.toFixed(2)}</b>${sd ? `<br/><span style="color:#111">● S&P 500</span> $${sd.value.toFixed(2)}` : ""}`);
+    })
+    .on("mouseleave", () => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
 }
