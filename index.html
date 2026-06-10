@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <main>
@@ -256,11 +256,13 @@
     <section id="writeup" class="deep-section writeup-section">
       <p class="eyebrow">Project writeup</p>
       <h2>About this project</h2>
-      <p>For our project prototype, we have the general structure for our webpage. At the top of the webpage is a hook that contextualizes the topic of our final project and will lead the viewer into learning a bit about finance in a practical manner through exploring how assets perform under different episodes or crises. To execute this, we first have the viewer select a specific asset to explore through visualizing the value of this asset when someone invests $100 on it. Furthermore, this asset is compared to other assets in a bar chart in terms of their return rates for the selected episode to determine how this asset performed relative to other assets.</p>
-      <p>After that, we have the viewer learn about that specific asset they chose from the beginning and discover whether it's an old or new money asset. Then we draw a comparison on how old money and new money assets on average fared off during a specific episode. After exploring this, we then have a section where the user can explore all the individual assets as they please by clicking on the specific asset they want to look at specifically.</p>
-      <p>At the bottom of the webpage, we have a quiz for the viewer to take in order to gauge where they are in learning about our topic and inform them of any misconceptions they may have if they selected the incorrect answer.</p>
-      <p>The most challenging part to tackle for our project's design is definitely the interactivity components. We have to ensure that the interaction doesn't only function properly but that it's effective in the way we are telling a story about our topic. We need to think of the correct interactive components regarding our specific project because there are many ways to go about interactive elements but we have to think of the ones that will best keep our users engaged and fit in with our storytelling or narrative. Furthermore, because interaction is a big part of the exploration aspect of this project, being able to nail the interactivity of our webpage will be crucial so that users can learn and gain insight about our project.</p>
-      <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario.</p>
+      <p>This project asks a simple question: if you put $100 into an asset at the start of a market crisis, what actually happens to it? We wanted to test finance labels that people repeat often, like gold is safe, bonds are safe, tech is risky, or Bitcoin is digital gold. Instead of telling viewers what to believe, the visualization lets them compare those labels across the same crises, the same $100 starting point, and the same S&amp;P 500 benchmark.</p>
+      <p>The story begins with cash because even doing nothing is not neutral. The inflation chart shows that $100 loses purchasing power over time, so every asset has to beat that quiet loss before it can really be called safe. After that, the viewer picks an asset and first sees an information card explaining what it is, whether it belongs to old money or new money, and what happened to that specific asset in the selected episode. This makes the later charts easier to understand because the viewer knows what they are looking at before watching the line move.</p>
+      <p>The main stress test then follows the selected asset through one crisis as a $100 line chart, with SPY kept on the chart as a benchmark. A ranked bar chart shows how every asset finished in the same episode, so the viewer can see whether their asset actually outperformed or just lost less badly than the market. The next section compares old money and new money directly. The group cards summarize the difference, and the old-versus-new line chart turns that comparison into a visual pattern.</p>
+      <p>The long-view chart expands the story beyond a single crisis. Viewers can select up to five assets while SPY stays locked on, use log scale for extreme assets like Bitcoin, and follow the same asset through multiple crisis windows. This interaction is important because one crisis is not enough to define an asset. Bonds can help in one environment and struggle in another. Tech can crash during the dot-com period but dominate during the AI rally. The market sheet and clickable notes give extra context for each asset, while the portfolio builder lets viewers test their own mix against the S&amp;P 500.</p>
+      <p>One design challenge was balancing storytelling with exploration. Too many assets at once would create overplotting, so the long-view chart limits the number of selected assets and uses distinct line colors. The green crisis bands act as annotations that connect the data to historical episodes. The asset notes also handle missing or partial data, such as ETFs that did not exist during earlier crises, so the viewer can understand gaps instead of treating them like errors.</p>
+      <p>The main takeaway is that there is no universally safe asset and no investment that wins every crisis. Safety depends on what kind of crisis you are in. This visualization succeeds because it lets viewers test that idea directly: they can choose an asset, watch the same $100 move through a crisis, compare it against old money, new money, and SPY, and then see whether that story still holds over time.</p>
+      <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario. ETF start dates and missing-history notes are included where an asset proxy did not exist for an older episode.</p>
     </section>
   </main>
 
@@ -274,6 +276,6 @@
 
   <div id="tooltip" class="tooltip"></div>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="main.js?v=9"></script>
+  <script src="main.js?v=10"></script>
 </body>
 </html>
