@@ -153,6 +153,18 @@ const OLD_MONEY_COLOR = "#666c70";
 const NEW_MONEY_COLOR = "#0b6f45";
 const BENCHMARK_COLOR = "#111111";
 
+// Distinct colors used only for the long-view comparison lines.
+// SPY stays black; the five selectable comparison assets get these colors in selection order.
+const LONG_VIEW_COLORS = ["#34A8FA", "#F8C88F", "#785EBA", "#11C7AA", "#007A33"];
+
+function longViewColorMap(names) {
+  const map = { "S&P 500": BENCHMARK_COLOR };
+  names.filter(n => n !== "S&P 500").forEach((name, i) => {
+    map[name] = LONG_VIEW_COLORS[i % LONG_VIEW_COLORS.length];
+  });
+  return map;
+}
+
 function assetLabel(name) {
   return ASSET_DISPLAY_NAMES[name] || name;
 }
@@ -1282,6 +1294,9 @@ function renderCheckboxes() {
       }
       this.checked ? checkedAssets.add(name) : checkedAssets.delete(name);
       checkedAssets.add("S&P 500");
+      // Changing selected assets requires a full redraw; otherwise the old cached
+      // longChartState keeps using the previous line set.
+      longChartState = null;
       renderCheckboxes();
       drawLongChart();
     });
@@ -1372,15 +1387,15 @@ function _drawLongBands(bandsG, xScale, h, w) {
   });
 }
 
-function _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate) {
+function _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, endDate, colorMap = null) {
   labelsG.selectAll("*").remove();
   const labelData = [];
   fullSeries.forEach(s => {
     const vis = s.values.filter(d => d.date <= endDate);
     if (!vis.length) return;
     const last = vis[vis.length - 1];
-    const isSpy = s.name === "S&P 500", isSelected = s.name === state.asset;
-    const color = isSpy ? BENCHMARK_COLOR : isSelected ? SELECTED_ASSET_COLOR : (ASSET_COLORS[s.name] || "#777");
+    const isSpy = s.name === "S&P 500";
+    const color = colorMap?.[s.name] || (isSpy ? BENCHMARK_COLOR : (ASSET_COLORS[s.name] || "#777"));
     labelData.push({ name: s.name, ticker: ASSET_INFO[s.name]?.ticker||s.name, value: last.value, x: xScale(last.date), y: yScale(last.value), color, isSpy });
   });
   fitLabelY(labelData, 14, h).forEach(d => {
@@ -1416,6 +1431,7 @@ function _buildLongChart(el, currentEndDate) {
     .map(name => ({ name, values: longSeriesForAsset(name, startDate, fullEndDate) }))
     .filter(s => s.values.length > 0);
   if (!fullSeries.length) { el.innerHTML = `<p style="padding:60px;text-align:center;color:#aaa">No data available.</p>`; return; }
+  const colorMap = longViewColorMap(fullSeries.map(s => s.name));
 
   const W = el.clientWidth || 980, H = 455;
   const margin = { top: 55, right: 138, bottom: 50, left: 68 };
@@ -1450,9 +1466,9 @@ function _buildLongChart(el, currentEndDate) {
   const pathMap = {};
   fullSeries.slice().sort((a,b) => (a.name==="S&P 500")-(b.name==="S&P 500")).forEach(s => {
     const isSpy = s.name==="S&P 500", isSelected = s.name===state.asset;
-    const color = isSpy?BENCHMARK_COLOR:isSelected?SELECTED_ASSET_COLOR:(ASSET_COLORS[s.name]||"#777");
+    const color = colorMap[s.name] || (isSpy ? BENCHMARK_COLOR : "#777");
     const path = linesG.append("path").datum(s.values).attr("fill","none").attr("stroke",color)
-      .attr("stroke-width",isSpy?3.2:isSelected?3:1.9).attr("opacity",isSpy?1:0.86)
+      .attr("stroke-width",isSpy?3.2:isSelected?3:2.4).attr("opacity",isSpy?1:0.92)
       .attr("d",makeLineGen(xScale));
     animatePath(path, isSpy?1000:1600);
     pathMap[s.name] = { path, color, isSpy };
@@ -1467,7 +1483,7 @@ function _buildLongChart(el, currentEndDate) {
   g.append("text").attr("class","axis-label").attr("x",w/2).attr("y",h+42).attr("text-anchor","middle").text("Date");
 
   const labelsG = g.append("g").attr("class","end-labels-g");
-  _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, currentEndDate);
+  _drawLongLabels(labelsG, fullSeries, xScale, yScale, w, h, currentEndDate, colorMap);
 
   const tooltip = d3.select("#tooltip");
   const hoverLine = g.append("line").attr("y1",0).attr("y2",h)
@@ -1490,12 +1506,12 @@ function _buildLongChart(el, currentEndDate) {
     })
     .on("mouseleave",() => { hoverLine.style("opacity",0); tooltip.style("opacity",0); });
 
-  longChartState = { svg, g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen, xScale, currentEndDate };
+  longChartState = { svg, g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen, xScale, currentEndDate, colorMap };
 }
 
 function _growLongChart(newEndDate) {
   if (!longChartState) return;
-  const { g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen } = longChartState;
+  const { g, linesG, bandsG, labelsG, xAxisG, w, h, startDate, yScale, pathMap, fullSeries, makeLineGen, colorMap } = longChartState;
   const DURATION = 2000;
   const ease = d3.easeCubicInOut;
   const xNew = d3.scaleTime().domain([startDate, newEndDate]).range([0, w]);
@@ -1525,7 +1541,7 @@ function _growLongChart(newEndDate) {
     setTimeout(() => {
       if (!longChartState) return;
       _drawLongBands(bandsG, xNew, h, w);
-      _drawLongLabels(labelsG, fullSeries, xNew, yScale, w, h, newEndDate);
+      _drawLongLabels(labelsG, fullSeries, xNew, yScale, w, h, newEndDate, colorMap);
       longChartState.xScale = xNew;
       longChartState.currentEndDate = newEndDate;
     }, DURATION + 80);
