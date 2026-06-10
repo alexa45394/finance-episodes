@@ -538,11 +538,6 @@ function initDropdowns() {
     $("glossary")?.scrollIntoView({ behavior: "smooth" });
   });
   $("continue-next-crisis")?.addEventListener("click", continueToNextCrisis);
-  $("log-scale-toggle")?.addEventListener("change", e => {
-    useLogScale = e.target.checked;
-    drawLongChart();
-  });
-
   window.addEventListener("resize", () => {
     if (wideData.length) drawLongChart();
   });

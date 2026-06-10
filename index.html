@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
   <main>
@@ -161,9 +161,6 @@
           <div id="asset-checkboxes" class="checkbox-ledger"></div>
           <p id="long-selection-note" class="micro-note">Choose up to five assets. SPY always stays on for comparison.</p>
         </div>
-        <label class="scale-toggle">
-          <input type="checkbox" id="log-scale-toggle" /> Log scale for extreme assets
-        </label>
       </div>
 
       <div class="chart-container large">
@@ -255,14 +252,13 @@
     <!-- WRITEUP -->
     <section id="writeup" class="deep-section writeup-section">
       <p class="eyebrow">Project writeup</p>
-      <h2>About this project</h2>
-      <p>This project asks a simple question: if you put $100 into an asset at the start of a market crisis, what actually happens to it? We wanted to test finance labels that people repeat often, like gold is safe, bonds are safe, tech is risky, or Bitcoin is digital gold. Instead of telling viewers what to believe, the visualization lets them compare those labels across the same crises, the same $100 starting point, and the same S&amp;P 500 benchmark.</p>
-      <p>The story begins with cash because even doing nothing is not neutral. The inflation chart shows that $100 loses purchasing power over time, so every asset has to beat that quiet loss before it can really be called safe. After that, the viewer picks an asset and first sees an information card explaining what it is, whether it belongs to old money or new money, and what happened to that specific asset in the selected episode. This makes the later charts easier to understand because the viewer knows what they are looking at before watching the line move.</p>
-      <p>The main stress test then follows the selected asset through one crisis as a $100 line chart, with SPY kept on the chart as a benchmark. A ranked bar chart shows how every asset finished in the same episode, so the viewer can see whether their asset actually outperformed or just lost less badly than the market. The next section compares old money and new money directly. The group cards summarize the difference, and the old-versus-new line chart turns that comparison into a visual pattern.</p>
-      <p>The long-view chart expands the story beyond a single crisis. Viewers can select up to five assets while SPY stays locked on, use log scale for extreme assets like Bitcoin, and follow the same asset through multiple crisis windows. This interaction is important because one crisis is not enough to define an asset. Bonds can help in one environment and struggle in another. Tech can crash during the dot-com period but dominate during the AI rally. The market sheet and clickable notes give extra context for each asset, while the portfolio builder lets viewers test their own mix against the S&amp;P 500.</p>
-      <p>One design challenge was balancing storytelling with exploration. Too many assets at once would create overplotting, so the long-view chart limits the number of selected assets and uses distinct line colors. The green crisis bands act as annotations that connect the data to historical episodes. The asset notes also handle missing or partial data, such as ETFs that did not exist during earlier crises, so the viewer can understand gaps instead of treating them like errors.</p>
-      <p>The main takeaway is that there is no universally safe asset and no investment that wins every crisis. Safety depends on what kind of crisis you are in. This visualization succeeds because it lets viewers test that idea directly: they can choose an asset, watch the same $100 move through a crisis, compare it against old money, new money, and SPY, and then see whether that story still holds over time.</p>
-      <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario. ETF start dates and missing-history notes are included where an asset proxy did not exist for an older episode.</p>
+      <h2>Afterword</h2>
+      <p>This project started from how casual finance advice can sound more certain than it really is. People talk about safe assets, risky assets, growth assets, inflation hedges, and digital gold as if those labels stay true in every situation. But markets are not that consistent. A crisis changes what people trust, and when trust changes, the same asset can suddenly tell a very different story.</p>
+      <p>We used $100 as the starting point because it makes the question feel concrete. Instead of looking at a price chart from far away, the viewer is asked to imagine a small decision made at the wrong or right moment. The point is not to find one perfect investment, but to make the tradeoffs visible. The old money and new money framing came from that tension. At first, the categories sound almost too clean: one side carries the language of stability, while the other carries the language of growth and speculation. Once they are placed inside different crises, they start to fracture. Old money does not always protect. New money does not always collapse. The story depends on what kind of crisis the market is living through.</p>
+      <p>A lot of the project became about learning how much the page should show at once. When we tried to show too many assets, the chart became unreadable. When the crisis labels were too clean, the historical moments disappeared. When the glossary became too boxed-in, it stopped feeling like a market sheet. The final version came out of those adjustments: limiting the long view, keeping SPY as a steady benchmark, using crisis bands as historical anchors, and making the asset notes specific enough that the data gaps and differences actually mattered.</p>
+      <p>That was the most interesting part of building this: the labels kept breaking, but so did some of our early design assumptions. Financial data can become messy very quickly, especially when assets move on completely different scales. The visualization had to become less about proving one asset was best and more about letting the viewer watch the meaning of “safe” change from crisis to crisis.</p>
+      <p>By the end, the clearest lesson is that no asset has a permanent personality. Safety is not a label an investment gets to keep forever. It depends on the crisis, the time period, and the fear driving the market. What survives one break may fail in the next, and what looks reckless in one decade can become the center of the next boom.</p>
+      <p class="data-note">Data: historical Yahoo Finance prices via yfinance. The $100 framing is hypothetical — real prices, hypothetical investment scenario.</p>
     </section>
   </main>
 
@@ -276,6 +272,6 @@
 
   <div id="tooltip" class="tooltip"></div>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="main.js?v=10"></script>
+  <script src="main.js?v=11"></script>
 </body>
 </html>
